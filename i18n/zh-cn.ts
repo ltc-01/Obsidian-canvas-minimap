@@ -32,8 +32,8 @@ const translations = {
 	'primaryNavigationStrategyDesc': '主要导航策略（直接点击小地图）',
 	'secondaryNavigationStrategy': '次要导航策略',
 	'secondaryNavigationStrategyDesc': '次要导航策略（Ctrl + 点击小地图）',
-	'pan': '平移',
-	'zoom': '缩放',
+	'pan': '直接移动',		//将摄像头直接移动到目标位置
+	'zoom': '缩放移动',		//移动到选定目标的分组框，然后缩放适应
 	'none': '无',
 	'reload': '重载小地图',
 	'toggle': '开关小地图',
