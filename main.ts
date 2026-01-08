@@ -306,7 +306,9 @@ export default class CanvasMinimap extends Plugin {
 			fg
 				.append("path")
 				.attr("d", link)
-				.attr("marker-end", "url(#arrowhead-end)")
+
+				//修改 - 删除了箭头，以免在小地图上看起来很乱
+				//.attr("marker-end", "url(#arrowhead-end)")
 				.attr("stroke", "grey")
 				.attr("stroke-width", 8)
 				.attr("fill", "none");
