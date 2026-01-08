@@ -2,6 +2,7 @@ import { App, TAbstractFile, Plugin, PluginSettingTab, Setting, FileView, Keymap
 import * as d3 from "d3";
 import { assert } from 'console';
 import { around } from 'monkey-around'; // for canvas patching
+import { t } from 'i18n';
 
 // Obsidian canvas types
 interface CanvasRect{
@@ -132,8 +133,8 @@ export default class CanvasMinimap extends Plugin {
 
 
 		this.addCommand({
-			id: 'reload',
-			name: 'Reload the minimap',
+			id: t('reload'),
+			name: t('reloadDesc'),
 			checkCallback: (checking: boolean) => {
 
 				if (this.getActiveCanvas()) {
@@ -146,8 +147,8 @@ export default class CanvasMinimap extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'toggle',
-			name: 'Toggle the minimap',
+			id: t('toggle'),
+			name: t('toggleDesc'),
 			checkCallback: (checking: boolean) => {
 				if (this.getActiveCanvas()) {
 					if (!checking) {
@@ -594,8 +595,8 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Width')
-			.setDesc('Width of the minimap')
+			.setName(t('width'))
+			.setDesc(t('widthDesc'))
 			.addText(text => text
 				.setValue(this.plugin.settings.width.toString())
 				.onChange(async (value) => {
@@ -604,8 +605,8 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Height')
-			.setDesc('Height of the minimap')
+			.setName(t('height'))
+			.setDesc(t('heightDesc'))
 			.addText(text => text
 				.setValue(this.plugin.settings.height.toString())
 				.onChange(async (value) => {
@@ -614,8 +615,8 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Margin')
-			.setDesc('Margin around the minimap')
+			.setName(t('margin'))
+			.setDesc(t('marginDesc'))
 			.addText(text => text
 				.setValue(this.plugin.settings.margin.toString())
 				.onChange(async (value) => {
@@ -624,8 +625,8 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Font size')
-			.setDesc('The font size of the minimap labels')
+			.setName(t('fontSize'))
+			.setDesc(t('fontSizeDesc'))
 			.addText(text => text
 				.setValue(this.plugin.settings.fontSize.toString())
 				.onChange(async (value) => {
@@ -634,8 +635,8 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Font color')
-			.setDesc('The font color of the minimap labels')
+			.setName(t('fontColor'))
+			.setDesc(t('fontColorDesc'))
 			.addText(text => text
 				.setValue(this.plugin.settings.fontColor)
 				.onChange(async (value) => {
@@ -645,14 +646,14 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 
 
 		new Setting(containerEl)
-			.setName('Side')
-			.setDesc('Which side of the editor view to place the minimap on')
+			.setName(t('side'))
+			.setDesc(t('sideDesc'))
 			.addDropdown(dropdown => dropdown
 				.addOptions({
-					'top-right': 'Top Right',
-					'top-left': 'Top Left',
-					'bottom-left': 'Bottom Left',
-					'bottom-right': 'Bottom Right'
+					'top-right': t('topRight'),
+					'top-left': t('topLeft'),
+					'bottom-left': t('bottomLeft'),
+					'bottom-right': t('bottomRight')
 				})
 				.setValue(this.plugin.settings.side)
 				.onChange(async (value) => {
@@ -661,8 +662,8 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Enabled')
-			.setDesc('Whether the minimap is enabled')
+			.setName(t('enabled'))
+			.setDesc(t('enabledDesc'))
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.enabled)
 				.onChange(async (value) => {
@@ -671,8 +672,8 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Background color')
-			.setDesc('Background color of the minimap')
+			.setName(t('backgroundColor'))
+			.setDesc(t('backgroundColorDesc'))
 			.addText(text => text
 				.setValue(this.plugin.settings.backgroundColor)
 				.onChange(async (value) => {
@@ -681,8 +682,8 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Group color')
-			.setDesc('Color of the group nodes')
+			.setName(t('groupColor'))
+			.setDesc(t('groupColorDesc'))
 			.addText(text => text
 				.setValue(this.plugin.settings.groupColor)
 				.onChange(async (value) => {
@@ -691,8 +692,8 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Hijack toolbar')
-			.setDesc('Move the toolbar on top of the minimap')
+			.setName(t('hijackToolbar'))
+			.setDesc(t('hijackToolbarDesc'))
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.hijackToolbar)
 				.onChange(async (value) => {
@@ -701,8 +702,8 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Draw active viewport')
-			.setDesc('Draw the active viewport on the minimap')
+			.setName(t('drawActiveViewport'))
+			.setDesc(t('drawActiveViewportDesc'))
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.drawActiveViewport)
 				.onChange(async (value) => {
@@ -711,13 +712,13 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 		
 		new Setting(containerEl)
-			.setName('Primary navigation strategy')
-			.setDesc('Primary navigation strategy (Directly click on minimap)')
+			.setName(t('primaryNavigationStrategy'))
+			.setDesc(t('primaryNavigationStrategyDesc'))
 			.addDropdown(dropdown => dropdown
 				.addOptions({
-					'PAN': 'Pan',
-					'ZOOM': 'Zoom',
-					'NONE': 'None'
+					'PAN': t('pan'),
+					'ZOOM': t('zoom'),
+					'NONE': t('none')
 				})
 				.setValue(this.plugin.settings.primaryNavigationStrategy)
 				.onChange(async (value) => {
@@ -726,13 +727,13 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Secondary navigation strategy')
-			.setDesc('Secondary navigation strategy (Ctrl + click on minimap)')
+			.setName(t('secondaryNavigationStrategy'))
+			.setDesc(t('secondaryNavigationStrategyDesc'))
 			.addDropdown(dropdown => dropdown
 				.addOptions({
-					'PAN': 'Pan',
-					'ZOOM': 'Zoom',
-					'NONE': 'None'
+					'PAN': t('pan'),
+					'ZOOM': t('zoom'),
+					'NONE': t('none')
 				})
 				.setValue(this.plugin.settings.secondaryNavigationStrategy)
 				.onChange(async (value) => {
