@@ -327,7 +327,7 @@ export default class CanvasMinimap extends Plugin {
 		if(!canvas)
 			return
 		let canvas_bbox = canvas.getViewportBBox()
-		const svg = d3.select(canvas.wrapperEl.parentNode)
+		const svg = d3.select('body')
 			.select('#_minimap_ > svg')
 		
 		svg.select('#minimap_viewport')
@@ -400,7 +400,8 @@ export default class CanvasMinimap extends Plugin {
 	unloadMinimap() {
 		const active_canvas = this.getActiveCanvas()
 		if (active_canvas) {
-			const container = d3.select(active_canvas.wrapperEl.parentNode)
+			// 修改：从body中移除小地图，而不是从画布容器中移除
+			const container = d3.select('body')
 			const minimap = container.select('#_minimap_')
 			if (!minimap.empty()) {
 				minimap.remove()
@@ -427,33 +428,116 @@ export default class CanvasMinimap extends Plugin {
 			toolbar.style('display', 'flex') // restore toolbar if it was hidden
 			const toolbar_item_rect = (toolbar.select('.canvas-control-item').node() as HTMLElement)?.getBoundingClientRect()
 
-			let minimap = container.select('#_minimap_')
+			let minimap = d3.select('#_minimap_')
 			if (minimap.empty()) {
 
-				const div = container.append('div').attr('id', '_minimap_')
-					.style('position', 'absolute')
+				// 修改：将小地图添加到body中，而不是画布容器内
+				const div = d3.select('body').append('div').attr('id', '_minimap_')
+					.style('position', 'fixed') // 改为fixed定位
 					.style('width', this.settings.width)
 					.style('height', this.settings.height)
 					.style('background-color', this.settings.backgroundColor)
-					.style('z-index', '1000')
-					.style('opacity', '0.3')
-					.style('pointer-events', 'none')
-					.style('border', '1px solid black')
+					.style('z-index', '10000') // 提高层级，确保浮在所有元素之上
+					.style('opacity', '0.9') // 增加不透明度
+					.style('pointer-events', 'all') // 允许交互
+					.style('border', '2px solid #333')
 					.style('border-radius', '5px')
 					.style('overflow', 'hidden')
+					.style('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')
 
+				// 根据设置的位置属性放置小地图
 				const side = this.settings.side
-				const top_offset = this.settings.hijackToolbar ? toolbar_item_rect?.height + 4 : 0
-				// position the minimap
-				if (side === 'top-right') {
-					div.style('top', `${top_offset}px`).style('right', '0')
-				} else if (side === 'top-left') {
-					div.style('top', `${top_offset}px`).style('left', '0')
-				} else if (side === 'bottom-left') {
-					div.style('bottom', '0').style('left', '0')
-				} else if (side === 'bottom-right') {
-					div.style('bottom', '0').style('right', '0')
+				switch(side) {
+					case 'top-right':
+						div.style('top', '20px').style('right', '20px')
+						break
+					case 'top-left':
+						div.style('top', '20px').style('left', '20px')
+						break
+					case 'bottom-left':
+						div.style('bottom', '20px').style('left', '20px')
+						break
+					case 'bottom-right':
+						div.style('bottom', '20px').style('right', '20px')
+						break
 				}
+
+				// 添加标题栏
+				let isDragging = false;
+				let offsetX = 0;
+				let offsetY = 0;
+
+				const header = div.insert('div', ':first-child')
+					.attr('class', 'minimap-header')
+					.style('position', 'absolute')
+					.style('top', '0')
+					.style('left', '0')
+					.style('right', '0')
+					.style('height', '20px')
+					.style('background-color', 'rgba(0,0,0,0.3)')
+					.style('cursor', 'move')
+					.style('display', 'flex')
+					.style('justify-content', 'space-between')
+					.style('align-items', 'center')
+					.style('padding', '0 4px')
+					.style('z-index', '10001');
+
+				header.append('span')
+					.attr('class', 'minimap-title')
+					.text('Canvas Minimap')
+					.style('color', 'white')
+					.style('font-size', '10px')
+					.style('font-weight', 'bold');
+
+				// 添加关闭按钮
+				const closeBtn = header.append('span')
+					.attr('class', 'minimap-close-btn')
+					.html('&times;')
+					.style('font-size', '14px')
+					.on('click', (e) => {
+						e.stopPropagation();
+						this.settings.enabled = false;
+						this.saveSettings();
+						this.unloadMinimap();
+					});
+
+				// 拖动功能
+				header.on('mousedown', (e) => {
+					isDragging = true;
+					offsetX = e.clientX - parseFloat(div.style('left'));
+					offsetY = e.clientY - parseFloat(div.style('top'));
+					div.style('transition', 'none'); // 拖动时禁用过渡效果
+				});
+
+				d3.select('body').on('mousemove', (e) => {
+					if (isDragging) {
+						div
+							.style('left', (e.clientX - offsetX) + 'px')
+							.style('top', (e.clientY - offsetY) + 'px');
+					}
+				}).on('mouseup', () => {
+					isDragging = false;
+					div.style('transition', 'box-shadow 0.2s ease'); // 拖动结束后恢复过渡效果
+					
+					// 确定新的位置设置
+					const left = parseFloat(div.style('left'));
+					const top = parseFloat(div.style('top'));
+					
+					// 确定新位置
+					if (top < window.innerHeight / 2) { // 上半部分
+						if (left < window.innerWidth / 2) { // 左侧
+							this.settings.side = 'top-left';
+						} else { // 右侧
+							this.settings.side = 'top-right';
+						}
+					} else { // 下半部分
+						if (left < window.innerWidth / 2) { // 左侧
+							this.settings.side = 'bottom-left';
+						} else { // 右侧
+							this.settings.side = 'bottom-right';
+						}
+					}
+				});
 
 				// markers
 				const svg = div.append('svg')
@@ -474,7 +558,7 @@ export default class CanvasMinimap extends Plugin {
 						d === "arrowhead-start" ? "10 0, 0 3.5, 10 7" : "0 0, 10 3.5, 0 7"
 					);
 
-				minimap = container.select('#_minimap_')
+				minimap = d3.select('#_minimap_')
 				svg.on('click', (e: any) => {
 					const active_canvas = this.getActiveCanvas()
 
@@ -513,62 +597,10 @@ export default class CanvasMinimap extends Plugin {
 					}
 
 				})
-				container.on('click', (e: any) => {
-					// locate rect of minimap
-					//const [x, y] = d3.pointer(e)
-					// cant register click on svg, so we dispatch click event to the svg /facepalm
-					svg.node()?.dispatchEvent(new MouseEvent('click', {
-						bubbles: false, clientX: e.clientX, clientY: e.clientY, ctrlKey: e.ctrlKey,
-						altKey: e.altKey, shiftKey: e.shiftKey, metaKey: e.metaKey
-					}))
-				})
-
-
-				// rearrange toolbar
-				if(this.settings.hijackToolbar){
-					if(container.select('#_minimap_toolbar_').empty()){
-						let toolbar_clone = container.select('.canvas-controls').clone(true)
-						
-						container.append(() => toolbar_clone.node())
-						toolbar_clone.attr('id', '_minimap_toolbar_').style('display', 'flex')
-						
-						// get minimap position
-						setTimeout(()=>{
-							const minimap_pos = new Vector2((minimap.node() as HTMLElement)?.offsetLeft, (minimap.node() as HTMLElement)?.offsetTop)
-							toolbar_clone
-							.style('position', 'absolute')
-							.style('left', `${minimap_pos?.x}px`)
-							.style('top', `${minimap_pos?.y - top_offset}px`)
-							.style('z-index', '1001')
-							.style('flex-direction', 'row')
-							.style('justify-content', 'flex-start')
-							.style('align-items', 'top')
-							.style('padding', '0')
-							.style('margin', '0')
-							.style('background-color', 'transparent')
-							.style('border', 'none')
-							toolbar_clone.selectAll('.canvas-control-group').style('flex-direction', 'row')		
-						}, 500)
-					}
-					// toolbar event routing
-					// TODO: optimize this later
-					const minimap_toolbar = container.selectAll('.canvas-controls').filter("#_minimap_toolbar_")
-					
-					minimap_toolbar.selectAll('.canvas-control-item').select(function(d:any, i:number, nodes:any){
-						d3.select(this).on('click', (e:any)=>{						
-							toolbar.selectAll('.canvas-control-item').filter((_:any, idx:number) => idx == i ).dispatch('click')
-						})
-						return this;
-					})
-					// hide original toolbar
-					toolbar.style('display', 'none')
-				}else{
-					// reset toolbar visibility
-					toolbar.style('display', 'flex')
-				}
+				// 不再需要在container上注册点击事件，因为svg已经能接收点击事件了
 			}
 
-			this.renderMinimap(container.select('#_minimap_>svg'), active_canvas)
+			this.renderMinimap(d3.select('#_minimap_>svg'), active_canvas)
 		}
 	}
 
