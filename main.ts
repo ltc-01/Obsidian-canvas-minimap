@@ -111,12 +111,12 @@ interface CanvasMinimapSettings {
 const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	width: 400,
 	height: 300,
-	margin: 100,
+	margin: 800,
 	fontSize: 10,
-	fontColor: 'white',
+	fontColor: 'grey',
 	side: 'bottom-right',
 	enabled: true,
-	backgroundColor: '#f3f0e9',
+	backgroundColor: '#ffffff',
 	groupColor: '#bdd5de55',
 	nodeColor: '#c3d6d7',
 	hijackToolbar: false,
@@ -502,10 +502,10 @@ export default class CanvasMinimap extends Plugin {
 					.style('z-index', '40') // 降低层级，避免覆盖设置界面
 					.style('opacity', this.settings.minimapOpacity) // 使用设置的透明度
 					.style('pointer-events', 'all') // 允许交互
-					.style('border', '2px solid #333')
+					// .style('border', '2px solid #808080')
 					.style('border-radius', '5px')
 					.style('overflow', 'hidden')
-					.style('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')
+					// .style('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')
 
 				// 根据设置的位置属性放置小地图，如果未设置则使用预设位置
 				if (this.settings.positionX !== 0 || this.settings.positionY !== 0) {
@@ -557,18 +557,6 @@ export default class CanvasMinimap extends Plugin {
 					.style('color', 'white')
 					.style('font-size', '10px')
 					.style('font-weight', 'bold');
-
-				// 添加关闭按钮
-				const closeBtn = header.append('span')
-					.attr('class', 'minimap-close-btn')
-					.html('&times;')
-					.style('font-size', '14px')
-					.on('click', (e) => {
-						e.stopPropagation();
-						this.settings.enabled = false;
-						this.saveSettings();
-						this.unloadMinimap();
-					});
 
 				// 拖动功能
 				header.on('mousedown', (e) => {
@@ -971,6 +959,41 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
+			.setName(t('enabled'))
+			.setDesc(t('enabledDesc'))
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enabled)
+				.onChange(async (value) => {
+					this.plugin.settings.enabled = value;
+					await this.plugin.saveSettings();
+				}));
+
+		
+		// 修改位置设置，添加下拉框和应用按钮
+		new Setting(containerEl)
+			.setName(t('side'))
+			.setDesc(t('sideDesc'))
+			.addDropdown(dropdown => dropdown
+				.addOptions({
+					'top-right': t('topRight'),
+					'top-left': t('topLeft'),
+					'bottom-left': t('bottomLeft'),
+					'bottom-right': t('bottomRight')
+				})
+				.setValue(this.plugin.settings.side)
+				.onChange(async (value) => {
+					this.plugin.settings.side = value as MinimapSide;
+					await this.plugin.saveSettings();
+				}))
+			.addButton(button => button
+				.setButtonText(t('applyPosition'))
+				.setCta()
+				.onClick(async () => {
+					// 只重置一次位置，不锁定
+					this.plugin.moveToPresetPosition();
+				}));
+		
+		new Setting(containerEl)
 			.setName(t('width'))
 			.setDesc(t('widthDesc'))
 			.addText(text => text
@@ -1046,40 +1069,6 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// 修改位置设置，添加下拉框和应用按钮
-		new Setting(containerEl)
-			.setName(t('side'))
-			.setDesc(t('sideDesc'))
-			.addDropdown(dropdown => dropdown
-				.addOptions({
-					'top-right': t('topRight'),
-					'top-left': t('topLeft'),
-					'bottom-left': t('bottomLeft'),
-					'bottom-right': t('bottomRight')
-				})
-				.setValue(this.plugin.settings.side)
-				.onChange(async (value) => {
-					this.plugin.settings.side = value as MinimapSide;
-					await this.plugin.saveSettings();
-				}))
-			.addButton(button => button
-				.setButtonText(t('applyPosition'))
-				.setCta()
-				.onClick(async () => {
-					// 只重置一次位置，不锁定
-					this.plugin.moveToPresetPosition();
-				}));
-
-		new Setting(containerEl)
-			.setName(t('enabled'))
-			.setDesc(t('enabledDesc'))
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.enabled)
-				.onChange(async (value) => {
-					this.plugin.settings.enabled = value;
-					await this.plugin.saveSettings();
-				}));
-
 		new Setting(containerEl)
 			.setName(t('backgroundColor'))
 			.setDesc(t('backgroundColorDesc'))
@@ -1100,15 +1089,15 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
-			.setName(t('hijackToolbar'))
-			.setDesc(t('hijackToolbarDesc'))
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.hijackToolbar)
-				.onChange(async (value) => {
-					this.plugin.settings.hijackToolbar = value;
-					await this.plugin.saveSettings();
-				}));
+		// new Setting(containerEl)
+		// 	.setName(t('hijackToolbar'))
+		// 	.setDesc(t('hijackToolbarDesc'))
+		// 	.addToggle(toggle => toggle
+		// 		.setValue(this.plugin.settings.hijackToolbar)
+		// 		.onChange(async (value) => {
+		// 			this.plugin.settings.hijackToolbar = value;
+		// 			await this.plugin.saveSettings();
+		// 		}));
 
 		new Setting(containerEl)
 			.setName(t('drawActiveViewport'))
