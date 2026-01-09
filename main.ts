@@ -608,8 +608,93 @@ export default class CanvasMinimap extends Plugin {
 						d === "arrowhead-start" ? "10 0, 0 3.5, 10 7" : "0 0, 10 3.5, 0 7"
 					);
 
+					// 添加缩放和平移功能的变量
+				let isSvgDragging = false;
+				let isRightDragging = false; // 专门用于右键拖动
+				let lastX = 0;
+				let lastY = 0;
+				
+				// 添加鼠标事件处理
+				svg.on('mousedown', (e: MouseEvent) => {
+					if (e.button === 0) { // 左键
+						isSvgDragging = true;
+						lastX = e.clientX;
+						lastY = e.clientY;
+						svg.style('cursor', 'grabbing');
+					} else if (e.button === 2) { // 右键
+						e.preventDefault(); // 阻止右键菜单
+						isRightDragging = true;
+						lastX = e.clientX;
+						lastY = e.clientY;
+						svg.style('cursor', 'grabbing');
+					}
+				});
+				
+				// 添加全局鼠标移动事件
+				const handleSvgMouseMove = (e: MouseEvent) => {
+					if (isSvgDragging || isRightDragging) {
+						const deltaX = e.clientX - lastX;
+						const deltaY = e.clientY - lastY;
+						
+						// 获取当前viewBox
+						const viewBox = svg.attr("viewBox").split(' ').map(Number);
+						const [x, y, width, height] = viewBox;
+						
+						// 计算平移量（根据缩放级别调整）
+						const scaleX = this.settings.width / width;
+						const scaleY = this.settings.height / height;
+						const actualDeltaX = -deltaX / scaleX;
+						const actualDeltaY = -deltaY / scaleY;
+						
+						// 更新viewBox以实现平移
+						svg.attr(
+							"viewBox",
+							`${x + actualDeltaX} ${y + actualDeltaY} ${width} ${height}`
+						);
+						
+						// 更新上次鼠标位置
+						lastX = e.clientX;
+						lastY = e.clientY;
+					}
+				};
+				
+				const handleSvgMouseUp = (e: MouseEvent) => {
+					if (isSvgDragging || isRightDragging) {
+						isSvgDragging = false;
+						isRightDragging = false;
+						svg.style('cursor', 'grab');
+					}
+				};
+
+				// 添加事件监听器到文档上，以确保即使鼠标移出小地图区域也能正常工作
+				document.addEventListener('mousemove', handleSvgMouseMove);
+				document.addEventListener('mouseup', handleSvgMouseUp);
+				document.addEventListener('contextmenu', (e: MouseEvent) => {
+					if (isRightDragging) {
+						e.preventDefault();
+						return false;
+					}
+				});
+
+				// 在插件卸载时清理事件监听器
+				this.register(() => {
+					document.removeEventListener('mousemove', handleSvgMouseMove);
+					document.removeEventListener('mouseup', handleSvgMouseUp);
+					document.removeEventListener('contextmenu', (e: MouseEvent) => {
+						if (isRightDragging) {
+							e.preventDefault();
+							return false;
+						}
+					});
+				});
+
 				minimap = d3.select('#_minimap_')
 				svg.on('click', (e: any) => {
+					if (isSvgDragging || isRightDragging) {
+						// 如果正在进行任何拖动操作，则不执行点击操作
+						return;
+					}
+					
 					const active_canvas = this.getActiveCanvas()
 
 					const p = d3.pointer(e)
@@ -647,6 +732,44 @@ export default class CanvasMinimap extends Plugin {
 					}
 
 				})
+
+				// 添加鼠标滚轮事件，用于缩放小地图内部视图
+				svg.on('wheel', (e: WheelEvent) => {
+					if (e.ctrlKey) {
+						// 阻止默认滚动行为
+						e.preventDefault();
+						
+						const maxZoomFactor = 20; // 最大放大倍数
+						const baseViewWidth = this.canvas_bounds.width();
+						const baseViewHeight = this.canvas_bounds.height();
+						
+						// 获取当前viewBox
+						const viewBox = svg.attr("viewBox").split(' ').map(Number);
+						const [currentX, currentY, currentWidth, currentHeight] = viewBox;
+						
+						// 获取鼠标相对于SVG的位置
+						const mousePosition = d3.pointer(e, svg.node());
+						const [mouseX, mouseY] = mousePosition;
+						
+						// 计算缩放因子
+						const zoomFactor = e.deltaY < 0 ? 0.9 : 1.1; // 向上滚动放大，向下滚动缩小
+						
+						// 计算新的宽高
+						const newWidth = Math.max(50, Math.min(baseViewWidth, currentWidth * zoomFactor)); // 限制最小范围
+						const newHeight = Math.max(50, Math.min(baseViewHeight, currentHeight * zoomFactor));
+						
+						// 计算缩放后的新坐标，以保持鼠标位置下的内容不变
+						const newCenterX = currentX + (mouseX - currentX) * (1 - newWidth/currentWidth);
+						const newCenterY = currentY + (mouseY - currentY) * (1 - newHeight/currentHeight);
+						
+						// 更新SVG的viewBox
+						svg.attr(
+							"viewBox",
+							`${newCenterX} ${newCenterY} ${newWidth} ${newHeight}`
+						);
+					}
+				})
+
 				// 不再需要在container上注册点击事件，因为svg已经能接收点击事件了
 			}
 
