@@ -770,6 +770,162 @@ export default class CanvasMinimap extends Plugin {
 					}
 				})
 
+				// 创建四个边缘和角落的调整大小区域
+				const createResizeArea = (position: string) => {
+					const resizeArea = div.append('div')
+						.attr('class', `minimap-resize-area minimap-resize-${position}`)
+						.style('position', 'absolute')
+						.style('background-color', 'transparent') // 完全透明
+						.style('z-index', '42')
+						.style('cursor', position.includes('right') ? 'e-resize' : 'w-resize')
+						.style('pointer-events', 'auto'); // 确保可以接收鼠标事件
+					
+					// 设置不同位置的尺寸和光标
+					if (position === 'top') {
+						resizeArea
+							.style('top', '0')
+							.style('left', '4px') // 避开角落区域
+							.style('width', `calc(100% - 4px)`) // 避开左右角落
+							.style('height', '4px')
+							.style('cursor', 'n-resize');
+					} else if (position === 'bottom') {
+						resizeArea
+							.style('bottom', '0')
+							.style('left', '4px')
+							.style('width', `calc(100% - 4px)`)
+							.style('height', '4px')
+							.style('cursor', 's-resize');
+					} else if (position === 'left') {
+						resizeArea
+							.style('top', '4px') // 避开角落区域
+							.style('left', '0')
+							.style('width', '4px')
+							.style('height', `calc(100% - 4px)`) // 避开上下角落
+							.style('cursor', 'w-resize');
+					} else if (position === 'right') {
+						resizeArea
+							.style('top', '4px')
+							.style('right', '0')
+							.style('width', '4px')
+							.style('height', `calc(100% - 4px)`)
+							.style('cursor', 'e-resize');
+					} else if (position === 'top-left') {
+						resizeArea
+							.style('top', '0')
+							.style('left', '0')
+							.style('width', '4px')
+							.style('height', '4px')
+							.style('cursor', 'nw-resize');
+					} else if (position === 'top-right') {
+						resizeArea
+							.style('top', '0')
+							.style('right', '0')
+							.style('width', '4px')
+							.style('height', '4px')
+							.style('cursor', 'ne-resize');
+					} else if (position === 'bottom-left') {
+						resizeArea
+							.style('bottom', '0')
+							.style('left', '0')
+							.style('width', '4px')
+							.style('height', '4px')
+							.style('cursor', 'sw-resize');
+					} else if (position === 'bottom-right') {
+						resizeArea
+							.style('bottom', '0')
+							.style('right', '0')
+							.style('width', '4px')
+							.style('height', '4px')
+							.style('cursor', 'se-resize');
+					}
+					
+					return resizeArea;
+				};
+				
+				// 创建八个调整大小区域（四边+四角）
+				const resizeAreas: {[key: string]: any} = {};
+				const positions = ['top', 'right', 'bottom', 'left', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
+				
+				for (const pos of positions) {
+					resizeAreas[pos] = createResizeArea(pos);
+				}
+				
+				// 调整大小功能
+				const startResize = (e: MouseEvent, horizontal: 'left' | 'right' | 'both', vertical: 'top' | 'bottom' | 'both') => {
+					e.preventDefault();
+					e.stopPropagation();
+					
+					const startX = e.clientX;
+					const startY = e.clientY;
+					const startWidth = parseFloat(div.style('width'));
+					const startHeight = parseFloat(div.style('height'));
+					const startLeft = parseFloat(div.style('left'));
+					const startTop = parseFloat(div.style('top'));
+					
+					const handleMouseMove = (e: MouseEvent) => {
+						const deltaX = e.clientX - startX;
+						const deltaY = e.clientY - startY;
+						
+						let newWidth = startWidth;
+						let newHeight = startHeight;
+						let newLeft = startLeft;
+						let newTop = startTop;
+						
+						if (horizontal === 'right' || horizontal === 'both') {
+							newWidth = Math.max(200, startWidth + deltaX); // 最小宽度200px
+						} else if (horizontal === 'left') {
+							const potentialNewWidth = startWidth - deltaX;
+							if (potentialNewWidth >= 200) { // 最小宽度200px
+								newWidth = potentialNewWidth;
+								newLeft = startLeft + deltaX;
+							}
+						}
+						
+						if (vertical === 'bottom' || vertical === 'both') {
+							newHeight = Math.max(150, startHeight + deltaY); // 最小高度150px
+						} else if (vertical === 'top') {
+							const potentialNewHeight = startHeight - deltaY;
+							if (potentialNewHeight >= 150) { // 最小高度150px
+								newHeight = potentialNewHeight;
+								newTop = startTop + deltaY;
+							}
+						}
+						
+						// 更新样式
+						div.style('width', newWidth + 'px')
+						   .style('height', newHeight + 'px')
+						   .style('left', newLeft + 'px')
+						   .style('top', newTop + 'px');
+						
+						// 更新设置中的尺寸
+						this.settings.width = newWidth;
+						this.settings.height = newHeight;
+						this.settings.positionX = newLeft;
+						this.settings.positionY = newTop;
+						this.saveSettings();
+						
+						// 重新渲染小地图以适应新的尺寸
+						this.renderMinimap(d3.select('#_minimap_>svg'), active_canvas);
+					};
+					
+					const handleMouseUp = () => {
+						document.removeEventListener('mousemove', handleMouseMove);
+						document.removeEventListener('mouseup', handleMouseUp);
+					};
+					
+					document.addEventListener('mousemove', handleMouseMove);
+					document.addEventListener('mouseup', handleMouseUp);
+				};
+				
+				// 为各个调整区域添加事件监听器
+				resizeAreas['right'].on('mousedown', (e: MouseEvent) => startResize(e, 'right', 'both'));
+				resizeAreas['left'].on('mousedown', (e: MouseEvent) => startResize(e, 'left', 'both'));
+				resizeAreas['bottom'].on('mousedown', (e: MouseEvent) => startResize(e, 'both', 'bottom'));
+				resizeAreas['top'].on('mousedown', (e: MouseEvent) => startResize(e, 'both', 'top'));
+				resizeAreas['top-left'].on('mousedown', (e: MouseEvent) => startResize(e, 'left', 'top'));
+				resizeAreas['top-right'].on('mousedown', (e: MouseEvent) => startResize(e, 'right', 'top'));
+				resizeAreas['bottom-left'].on('mousedown', (e: MouseEvent) => startResize(e, 'left', 'bottom'));
+				resizeAreas['bottom-right'].on('mousedown', (e: MouseEvent) => startResize(e, 'right', 'bottom'));
 				// 不再需要在container上注册点击事件，因为svg已经能接收点击事件了
 			}
 
