@@ -11,6 +11,9 @@ If your plugin does not need CSS, delete this file.
 #_minimap_ {
     cursor: move;
     transition: box-shadow 0.2s ease;
+    border: 1px solid #a0a0a0; /* Windows风格的灰色边框 */
+    background-color: rgba(255, 255, 255, 0.9); /* 稍微调整背景色透明度 */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2); /* 调整阴影效果更接近Windows风格 */
 }
 
 #_minimap_:hover {
@@ -19,7 +22,7 @@ If your plugin does not need CSS, delete this file.
 
 /* 小地图标题栏样式 */
 .minimap-header {
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(128, 128, 128, 0.3); /* 更接近Windows标题栏的颜色 */
     padding: 4px;
     display: flex;
     justify-content: space-between;
@@ -29,12 +32,12 @@ If your plugin does not need CSS, delete this file.
 
 .minimap-title {
     font-size: 12px;
-    color: white;
+    color: #333; /* 更深的颜色以便更好阅读 */
     font-weight: bold;
 }
 
 .minimap-close-btn {
-    color: white;
+    color: #333;
     cursor: pointer;
     padding: 2px;
     border-radius: 2px;
