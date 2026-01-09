@@ -137,6 +137,18 @@ export default class CanvasMinimap extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
+		// 添加侧边栏按钮
+		this.addRibbonIcon('map', t('mapDesc'), (evt: MouseEvent) => {
+			// 切换小地图启用状态
+			this.settings.enabled = !this.settings.enabled;
+			this.saveSettings();
+			
+			if (this.settings.enabled) {
+				this.setupMinimap();
+			} else {
+				this.unloadMinimap();
+			}
+		});
 
 		this.addCommand({
 			id: t('reload'),

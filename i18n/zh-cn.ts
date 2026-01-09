@@ -42,6 +42,7 @@ const translations = {
 	'applyPosition': '应用位置',
 	'minimapOpacity': '透明度',
 	'minimapOpacityDesc': '自定义小地图的透明度',
+	'mapDesc': '切换小地图显示/隐藏',
 
 };
 

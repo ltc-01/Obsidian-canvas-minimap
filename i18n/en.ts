@@ -42,6 +42,7 @@ const translations = {
 	'applyPosition': 'Apply Position',
 	'minimapOpacity': 'Opacity',
 	'minimapOpacityDesc': 'Customize the opacity of the minimap',
+	'mapDesc': 'Toggle the minimap',
 };
 
 export default translations;
