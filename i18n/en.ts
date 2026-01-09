@@ -40,6 +40,8 @@ const translations = {
 	'reloadDesc': 'Reload the minimap',
 	'toggleDesc': 'Toggle the minimap',
 	'applyPosition': 'Apply Position',
+	'minimapOpacity': 'Opacity',
+	'minimapOpacityDesc': 'Customize the opacity of the minimap',
 };
 
 export default translations;

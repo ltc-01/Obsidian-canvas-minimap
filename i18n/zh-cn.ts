@@ -39,7 +39,9 @@ const translations = {
 	'toggle': '开关小地图',
 	'reloadDesc': '重载小地图',
 	'toggleDesc': '切换小地图显示/隐藏',
-	'applyPosition': '应用位置'
+	'applyPosition': '应用位置',
+	'minimapOpacity': '透明度',
+	'minimapOpacityDesc': '自定义小地图的透明度',
 
 };
 

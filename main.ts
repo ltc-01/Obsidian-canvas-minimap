@@ -103,9 +103,9 @@ interface CanvasMinimapSettings {
 	drawActiveViewport: boolean;
 	primaryNavigationStrategy: CanvasNavigationStrategy;
 	secondaryNavigationStrategy: CanvasNavigationStrategy;
-	// 添加位置坐标设置
 	positionX: number;
 	positionY: number;
+	minimapOpacity: number;
 }
 
 const DEFAULT_SETTINGS: CanvasMinimapSettings = {
@@ -116,16 +116,16 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	fontColor: 'white',
 	side: 'bottom-right',
 	enabled: true,
-	backgroundColor: '#f3f0e933',
+	backgroundColor: '#f3f0e9',
 	groupColor: '#bdd5de55',
 	nodeColor: '#c3d6d7',
 	hijackToolbar: false,
 	drawActiveViewport: true,
 	primaryNavigationStrategy: 'ZOOM',
 	secondaryNavigationStrategy: 'PAN',
-	// 默认位置为0,0，表示未设置特定位置
 	positionX: 0,
-	positionY: 0
+	positionY: 0,
+	minimapOpacity: 1
 }
 
 export default class CanvasMinimap extends Plugin {
@@ -235,19 +235,20 @@ export default class CanvasMinimap extends Plugin {
 			bbox.maxX + this.settings.margin,
 			bbox.maxY + this.settings.margin)
 		
-		svg.attr(
-			"viewBox",
-			`${this.canvas_bounds.minX} ${this.canvas_bounds.minY} ${this.canvas_bounds.width()} ${this.canvas_bounds.height()}`
-		)
-			.attr("preserveAspectRatio", "xMidYMid meet")
-			.attr("width", this.settings.width)
-			.attr("height", this.settings.height);
-		
-		let bg = svg.append('g')
-			.attr('id', 'minimap_bg')
-		let fg = svg.append('g')
-			.attr('id', 'minimap_fg')
-		
+			svg.attr(
+				"viewBox",
+				`${this.canvas_bounds.minX} ${this.canvas_bounds.minY} ${this.canvas_bounds.width()} ${this.canvas_bounds.height()}`
+			)
+				.attr("preserveAspectRatio", "xMidYMid meet")
+				.attr("width", this.settings.width)
+				.attr("height", this.settings.height);
+			
+			
+			let bg = svg.append('g')
+				.attr('id', 'minimap_bg')
+			let fg = svg.append('g')
+				.attr('id', 'minimap_fg')
+			
 
 		groups.forEach((n: any) => {
 			const g = fg.append('g')
@@ -480,14 +481,14 @@ export default class CanvasMinimap extends Plugin {
 			let minimap = d3.select('#_minimap_')
 			if (minimap.empty()) {
 
-				// 修改：将小地图添加到body中，而不是画布容器内
+				
 				const div = d3.select('body').append('div').attr('id', '_minimap_')
 					.style('position', 'fixed') // 改为fixed定位
-					.style('width', this.settings.width)
-					.style('height', this.settings.height)
-					.style('background-color', this.settings.backgroundColor)
+					.style('width', this.settings.width + 'px')
+					.style('height', this.settings.height + 'px')
+					.style('background-color', this.settings.backgroundColor) // 设置背景色
 					.style('z-index', '10000') // 提高层级，确保浮在所有元素之上
-					.style('opacity', '0.9') // 增加不透明度
+					.style('opacity', this.settings.minimapOpacity) // 使用设置的透明度
 					.style('pointer-events', 'all') // 允许交互
 					.style('border', '2px solid #333')
 					.style('border-radius', '5px')
@@ -711,6 +712,28 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 					this.plugin.settings.margin = parseInt(value);
 					await this.plugin.saveSettings();
 				}));
+
+			// 添加透明度设置
+		new Setting(containerEl)
+			.setName(t('minimapOpacity'))
+			.setDesc(t('minimapOpacityDesc'))
+			.addSlider(slider => slider
+				.setLimits(0.1, 1, 0.05)
+				.setValue(this.plugin.settings.minimapOpacity)
+				.onChange(async (value) => {
+					this.plugin.settings.minimapOpacity = value;
+					await this.plugin.saveSettings();
+				}))
+			.addExtraButton(button => button
+				.setIcon('reset')
+				.setTooltip('Reset to default')
+				.onClick(async () => {
+					this.plugin.settings.minimapOpacity = DEFAULT_SETTINGS.minimapOpacity;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+
 
 		new Setting(containerEl)
 			.setName(t('fontSize'))
