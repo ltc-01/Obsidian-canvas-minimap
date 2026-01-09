@@ -482,12 +482,12 @@ export default class CanvasMinimap extends Plugin {
 			if (minimap.empty()) {
 
 				
-				const div = d3.select('body').append('div').attr('id', '_minimap_')
+					const div = d3.select('body').append('div').attr('id', '_minimap_')
 					.style('position', 'fixed') // 改为fixed定位
 					.style('width', this.settings.width + 'px')
 					.style('height', this.settings.height + 'px')
 					.style('background-color', this.settings.backgroundColor) // 设置背景色
-					.style('z-index', '10000') // 提高层级，确保浮在所有元素之上
+					.style('z-index', '40') // 降低层级，避免覆盖设置界面
 					.style('opacity', this.settings.minimapOpacity) // 使用设置的透明度
 					.style('pointer-events', 'all') // 允许交互
 					.style('border', '2px solid #333')
@@ -537,7 +537,7 @@ export default class CanvasMinimap extends Plugin {
 					.style('justify-content', 'space-between')
 					.style('align-items', 'center')
 					.style('padding', '0 4px')
-					.style('z-index', '10001');
+					.style('z-index', '41'); // 降低标题栏层级
 
 				header.append('span')
 					.attr('class', 'minimap-title')
