@@ -116,7 +116,7 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	fontColor: 'white',
 	side: 'bottom-right',
 	enabled: true,
-	backgroundColor: '#f3f0e9',
+	backgroundColor: '#ffffff',
 	groupColor: '#bdd5de55',
 	nodeColor: '#c3d6d7',
 	hijackToolbar: false,
@@ -557,18 +557,6 @@ export default class CanvasMinimap extends Plugin {
 					.style('color', 'white')
 					.style('font-size', '10px')
 					.style('font-weight', 'bold');
-
-				// 添加关闭按钮
-				const closeBtn = header.append('span')
-					.attr('class', 'minimap-close-btn')
-					.html('&times;')
-					.style('font-size', '14px')
-					.on('click', (e) => {
-						e.stopPropagation();
-						this.settings.enabled = false;
-						this.saveSettings();
-						this.unloadMinimap();
-					});
 
 				// 拖动功能
 				header.on('mousedown', (e) => {
