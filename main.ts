@@ -103,6 +103,9 @@ interface CanvasMinimapSettings {
 	drawActiveViewport: boolean;
 	primaryNavigationStrategy: CanvasNavigationStrategy;
 	secondaryNavigationStrategy: CanvasNavigationStrategy;
+	// 添加位置坐标设置
+	positionX: number;
+	positionY: number;
 }
 
 const DEFAULT_SETTINGS: CanvasMinimapSettings = {
@@ -119,7 +122,10 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	hijackToolbar: false,
 	drawActiveViewport: true,
 	primaryNavigationStrategy: 'ZOOM',
-	secondaryNavigationStrategy: 'PAN'
+	secondaryNavigationStrategy: 'PAN',
+	// 默认位置为0,0，表示未设置特定位置
+	positionX: 0,
+	positionY: 0
 }
 
 export default class CanvasMinimap extends Plugin {
@@ -415,6 +421,49 @@ export default class CanvasMinimap extends Plugin {
 			this.canvas_event.off('CANVAS_TICK', CanvasMinimap.onCanvasUpdate)
 		}
 	}
+	
+	// 添加一个新方法，用于将小地图移动到预设位置
+	moveToPresetPosition() {
+		if (!this.getActiveCanvas()) return;
+		
+		const active_canvas = this.getActiveCanvas();
+		const div = d3.select('#_minimap_');
+		
+		if (div.empty()) return;
+		
+		let newX, newY;
+		const rect = active_canvas.wrapperEl.getBoundingClientRect();
+		switch (this.settings.side) {
+			case 'top-right':
+				newX = window.innerWidth - this.settings.width - 20;
+				newY = 20;
+				break;
+			case 'top-left':
+				newX = 20;
+				newY = 20;
+				break;
+			case 'bottom-left':
+				newX = 20;
+				newY = window.innerHeight - this.settings.height - 20;
+				break;
+			case 'bottom-right':
+				newX = window.innerWidth - this.settings.width - 20;
+				newY = window.innerHeight - this.settings.height - 20;
+				break;
+		}
+		
+		// 更新位置
+		div.style('left', newX + 'px')
+			.style('top', newY + 'px');
+		
+		// 更新设置中的位置
+		this.settings.positionX = newX;
+		this.settings.positionY = newY;
+		
+		// 保存设置
+		this.saveSettings();
+	}
+	
 	setupMinimap() {
 		if (!this.settings.enabled) return
 		//let active_canvas = this.app.workspace.getActiveViewOfType("canvas")
@@ -445,21 +494,28 @@ export default class CanvasMinimap extends Plugin {
 					.style('overflow', 'hidden')
 					.style('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')
 
-				// 根据设置的位置属性放置小地图
-				const side = this.settings.side
-				switch(side) {
-					case 'top-right':
-						div.style('top', '20px').style('right', '20px')
-						break
-					case 'top-left':
-						div.style('top', '20px').style('left', '20px')
-						break
-					case 'bottom-left':
-						div.style('bottom', '20px').style('left', '20px')
-						break
-					case 'bottom-right':
-						div.style('bottom', '20px').style('right', '20px')
-						break
+				// 根据设置的位置属性放置小地图，如果未设置则使用预设位置
+				if (this.settings.positionX !== 0 || this.settings.positionY !== 0) {
+					// 使用保存的位置
+					div.style('left', this.settings.positionX + 'px')
+						.style('top', this.settings.positionY + 'px')
+				} else {
+					// 使用预设位置
+					const side = this.settings.side
+					switch(side) {
+						case 'top-right':
+							div.style('top', '20px').style('right', '20px')
+							break
+						case 'top-left':
+							div.style('top', '20px').style('left', '20px')
+							break
+						case 'bottom-left':
+							div.style('bottom', '20px').style('left', '20px')
+							break
+						case 'bottom-right':
+							div.style('bottom', '20px').style('right', '20px')
+							break
+					}
 				}
 
 				// 添加标题栏
@@ -504,8 +560,11 @@ export default class CanvasMinimap extends Plugin {
 				// 拖动功能
 				header.on('mousedown', (e) => {
 					isDragging = true;
-					offsetX = e.clientX - parseFloat(div.style('left'));
-					offsetY = e.clientY - parseFloat(div.style('top'));
+					const minimapNode = div.node();
+					if (!minimapNode) return;
+					const rect = minimapNode.getBoundingClientRect();
+					offsetX = e.clientX - rect.left;
+					offsetY = e.clientY - rect.top;
 					div.style('transition', 'none'); // 拖动时禁用过渡效果
 				});
 
@@ -516,26 +575,16 @@ export default class CanvasMinimap extends Plugin {
 							.style('top', (e.clientY - offsetY) + 'px');
 					}
 				}).on('mouseup', () => {
-					isDragging = false;
-					div.style('transition', 'box-shadow 0.2s ease'); // 拖动结束后恢复过渡效果
-					
-					// 确定新的位置设置
-					const left = parseFloat(div.style('left'));
-					const top = parseFloat(div.style('top'));
-					
-					// 确定新位置
-					if (top < window.innerHeight / 2) { // 上半部分
-						if (left < window.innerWidth / 2) { // 左侧
-							this.settings.side = 'top-left';
-						} else { // 右侧
-							this.settings.side = 'top-right';
-						}
-					} else { // 下半部分
-						if (left < window.innerWidth / 2) { // 左侧
-							this.settings.side = 'bottom-left';
-						} else { // 右侧
-							this.settings.side = 'bottom-right';
-						}
+					if (isDragging) {
+						isDragging = false;
+						div.style('transition', 'box-shadow 0.2s ease'); // 拖动结束后恢复过渡效果
+						
+						// 保存当前位置
+						const left = parseFloat(div.style('left'));
+						const top = parseFloat(div.style('top'));
+						this.settings.positionX = left;
+						this.settings.positionY = top;
+						this.saveSettings();
 					}
 				});
 
@@ -605,7 +654,8 @@ export default class CanvasMinimap extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const loadedData = await this.loadData();
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
 	}
 
 	async saveSettings() {
@@ -634,8 +684,10 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 			.addText(text => text
 				.setValue(this.plugin.settings.width.toString())
 				.onChange(async (value) => {
-					this.plugin.settings.width = parseInt(value);
-					await this.plugin.saveSettings();
+					if(value && !isNaN(Number(value))){
+						this.plugin.settings.width = parseInt(value);
+						await this.plugin.saveSettings();
+					}
 				}));
 
 		new Setting(containerEl)
@@ -644,9 +696,11 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 			.addText(text => text
 				.setValue(this.plugin.settings.height.toString())
 				.onChange(async (value) => {
+				if(value && !isNaN(Number(value))){ 
 					this.plugin.settings.height = parseInt(value);
 					await this.plugin.saveSettings();
-				}));
+				}
+			}));
 
 		new Setting(containerEl)
 			.setName(t('margin'))
@@ -678,7 +732,7 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-
+		// 修改位置设置，添加下拉框和应用按钮
 		new Setting(containerEl)
 			.setName(t('side'))
 			.setDesc(t('sideDesc'))
@@ -693,6 +747,13 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.side = value as MinimapSide;
 					await this.plugin.saveSettings();
+				}))
+			.addButton(button => button
+				.setButtonText(t('applyPosition'))
+				.setCta()
+				.onClick(async () => {
+					// 只重置一次位置，不锁定
+					this.plugin.moveToPresetPosition();
 				}));
 
 		new Setting(containerEl)

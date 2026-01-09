@@ -38,7 +38,8 @@ const translations = {
 	'reload': 'Reload the minimap',
 	'toggle': 'Toggle the minimap',
 	'reloadDesc': 'Reload the minimap',
-	'toggleDesc': 'Toggle the minimap'
+	'toggleDesc': 'Toggle the minimap',
+	'applyPosition': 'Apply Position',
 };
 
 export default translations;
