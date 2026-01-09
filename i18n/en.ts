@@ -38,7 +38,11 @@ const translations = {
 	'reload': 'Reload the minimap',
 	'toggle': 'Toggle the minimap',
 	'reloadDesc': 'Reload the minimap',
-	'toggleDesc': 'Toggle the minimap'
+	'toggleDesc': 'Toggle the minimap',
+	'applyPosition': 'Apply Position',
+	'minimapOpacity': 'Opacity',
+	'minimapOpacityDesc': 'Customize the opacity of the minimap',
+	'mapDesc': 'Toggle the minimap',
 };
 
 export default translations;

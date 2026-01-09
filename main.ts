@@ -103,6 +103,9 @@ interface CanvasMinimapSettings {
 	drawActiveViewport: boolean;
 	primaryNavigationStrategy: CanvasNavigationStrategy;
 	secondaryNavigationStrategy: CanvasNavigationStrategy;
+	positionX: number;
+	positionY: number;
+	minimapOpacity: number;
 }
 
 const DEFAULT_SETTINGS: CanvasMinimapSettings = {
@@ -113,13 +116,16 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	fontColor: 'white',
 	side: 'bottom-right',
 	enabled: true,
-	backgroundColor: '#f3f0e933',
+	backgroundColor: '#f3f0e9',
 	groupColor: '#bdd5de55',
 	nodeColor: '#c3d6d7',
 	hijackToolbar: false,
 	drawActiveViewport: true,
 	primaryNavigationStrategy: 'ZOOM',
-	secondaryNavigationStrategy: 'PAN'
+	secondaryNavigationStrategy: 'PAN',
+	positionX: 0,
+	positionY: 0,
+	minimapOpacity: 1
 }
 
 export default class CanvasMinimap extends Plugin {
@@ -131,6 +137,18 @@ export default class CanvasMinimap extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
+		// 添加侧边栏按钮
+		this.addRibbonIcon('map', t('mapDesc'), (evt: MouseEvent) => {
+			// 切换小地图启用状态
+			this.settings.enabled = !this.settings.enabled;
+			this.saveSettings();
+			
+			if (this.settings.enabled) {
+				this.setupMinimap();
+			} else {
+				this.unloadMinimap();
+			}
+		});
 
 		this.addCommand({
 			id: t('reload'),
@@ -229,19 +247,20 @@ export default class CanvasMinimap extends Plugin {
 			bbox.maxX + this.settings.margin,
 			bbox.maxY + this.settings.margin)
 		
-		svg.attr(
-			"viewBox",
-			`${this.canvas_bounds.minX} ${this.canvas_bounds.minY} ${this.canvas_bounds.width()} ${this.canvas_bounds.height()}`
-		)
-			.attr("preserveAspectRatio", "xMidYMid meet")
-			.attr("width", this.settings.width)
-			.attr("height", this.settings.height);
-		
-		let bg = svg.append('g')
-			.attr('id', 'minimap_bg')
-		let fg = svg.append('g')
-			.attr('id', 'minimap_fg')
-		
+			svg.attr(
+				"viewBox",
+				`${this.canvas_bounds.minX} ${this.canvas_bounds.minY} ${this.canvas_bounds.width()} ${this.canvas_bounds.height()}`
+			)
+				.attr("preserveAspectRatio", "xMidYMid meet")
+				.attr("width", this.settings.width)
+				.attr("height", this.settings.height);
+			
+			
+			let bg = svg.append('g')
+				.attr('id', 'minimap_bg')
+			let fg = svg.append('g')
+				.attr('id', 'minimap_fg')
+			
 
 		groups.forEach((n: any) => {
 			const g = fg.append('g')
@@ -327,7 +346,7 @@ export default class CanvasMinimap extends Plugin {
 		if(!canvas)
 			return
 		let canvas_bbox = canvas.getViewportBBox()
-		const svg = d3.select(canvas.wrapperEl.parentNode)
+		const svg = d3.select('body')
 			.select('#_minimap_ > svg')
 		
 		svg.select('#minimap_viewport')
@@ -400,7 +419,8 @@ export default class CanvasMinimap extends Plugin {
 	unloadMinimap() {
 		const active_canvas = this.getActiveCanvas()
 		if (active_canvas) {
-			const container = d3.select(active_canvas.wrapperEl.parentNode)
+			// 修改：从body中移除小地图，而不是从画布容器中移除
+			const container = d3.select('body')
 			const minimap = container.select('#_minimap_')
 			if (!minimap.empty()) {
 				minimap.remove()
@@ -414,6 +434,49 @@ export default class CanvasMinimap extends Plugin {
 			this.canvas_event.off('CANVAS_TICK', CanvasMinimap.onCanvasUpdate)
 		}
 	}
+	
+	// 添加一个新方法，用于将小地图移动到预设位置
+	moveToPresetPosition() {
+		if (!this.getActiveCanvas()) return;
+		
+		const active_canvas = this.getActiveCanvas();
+		const div = d3.select('#_minimap_');
+		
+		if (div.empty()) return;
+		
+		let newX, newY;
+		const rect = active_canvas.wrapperEl.getBoundingClientRect();
+		switch (this.settings.side) {
+			case 'top-right':
+				newX = window.innerWidth - this.settings.width - 20;
+				newY = 20;
+				break;
+			case 'top-left':
+				newX = 20;
+				newY = 20;
+				break;
+			case 'bottom-left':
+				newX = 20;
+				newY = window.innerHeight - this.settings.height - 20;
+				break;
+			case 'bottom-right':
+				newX = window.innerWidth - this.settings.width - 20;
+				newY = window.innerHeight - this.settings.height - 20;
+				break;
+		}
+		
+		// 更新位置
+		div.style('left', newX + 'px')
+			.style('top', newY + 'px');
+		
+		// 更新设置中的位置
+		this.settings.positionX = newX;
+		this.settings.positionY = newY;
+		
+		// 保存设置
+		this.saveSettings();
+	}
+	
 	setupMinimap() {
 		if (!this.settings.enabled) return
 		//let active_canvas = this.app.workspace.getActiveViewOfType("canvas")
@@ -427,33 +490,116 @@ export default class CanvasMinimap extends Plugin {
 			toolbar.style('display', 'flex') // restore toolbar if it was hidden
 			const toolbar_item_rect = (toolbar.select('.canvas-control-item').node() as HTMLElement)?.getBoundingClientRect()
 
-			let minimap = container.select('#_minimap_')
+			let minimap = d3.select('#_minimap_')
 			if (minimap.empty()) {
 
-				const div = container.append('div').attr('id', '_minimap_')
-					.style('position', 'absolute')
-					.style('width', this.settings.width)
-					.style('height', this.settings.height)
-					.style('background-color', this.settings.backgroundColor)
-					.style('z-index', '1000')
-					.style('opacity', '0.3')
-					.style('pointer-events', 'none')
-					.style('border', '1px solid black')
+				
+					const div = d3.select('body').append('div').attr('id', '_minimap_')
+					.style('position', 'fixed') // 改为fixed定位
+					.style('width', this.settings.width + 'px')
+					.style('height', this.settings.height + 'px')
+					.style('background-color', this.settings.backgroundColor) // 设置背景色
+					.style('z-index', '40') // 降低层级，避免覆盖设置界面
+					.style('opacity', this.settings.minimapOpacity) // 使用设置的透明度
+					.style('pointer-events', 'all') // 允许交互
+					.style('border', '2px solid #333')
 					.style('border-radius', '5px')
 					.style('overflow', 'hidden')
+					.style('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')
 
-				const side = this.settings.side
-				const top_offset = this.settings.hijackToolbar ? toolbar_item_rect?.height + 4 : 0
-				// position the minimap
-				if (side === 'top-right') {
-					div.style('top', `${top_offset}px`).style('right', '0')
-				} else if (side === 'top-left') {
-					div.style('top', `${top_offset}px`).style('left', '0')
-				} else if (side === 'bottom-left') {
-					div.style('bottom', '0').style('left', '0')
-				} else if (side === 'bottom-right') {
-					div.style('bottom', '0').style('right', '0')
+				// 根据设置的位置属性放置小地图，如果未设置则使用预设位置
+				if (this.settings.positionX !== 0 || this.settings.positionY !== 0) {
+					// 使用保存的位置
+					div.style('left', this.settings.positionX + 'px')
+						.style('top', this.settings.positionY + 'px')
+				} else {
+					// 使用预设位置
+					const side = this.settings.side
+					switch(side) {
+						case 'top-right':
+							div.style('top', '20px').style('right', '20px')
+							break
+						case 'top-left':
+							div.style('top', '20px').style('left', '20px')
+							break
+						case 'bottom-left':
+							div.style('bottom', '20px').style('left', '20px')
+							break
+						case 'bottom-right':
+							div.style('bottom', '20px').style('right', '20px')
+							break
+					}
 				}
+
+				// 添加标题栏
+				let isDragging = false;
+				let offsetX = 0;
+				let offsetY = 0;
+
+				const header = div.insert('div', ':first-child')
+					.attr('class', 'minimap-header')
+					.style('position', 'absolute')
+					.style('top', '0')
+					.style('left', '0')
+					.style('right', '0')
+					.style('height', '20px')
+					.style('background-color', 'rgba(0,0,0,0.3)')
+					.style('cursor', 'move')
+					.style('display', 'flex')
+					.style('justify-content', 'space-between')
+					.style('align-items', 'center')
+					.style('padding', '0 4px')
+					.style('z-index', '41'); // 降低标题栏层级
+
+				header.append('span')
+					.attr('class', 'minimap-title')
+					.text('Canvas Minimap')
+					.style('color', 'white')
+					.style('font-size', '10px')
+					.style('font-weight', 'bold');
+
+				// 添加关闭按钮
+				const closeBtn = header.append('span')
+					.attr('class', 'minimap-close-btn')
+					.html('&times;')
+					.style('font-size', '14px')
+					.on('click', (e) => {
+						e.stopPropagation();
+						this.settings.enabled = false;
+						this.saveSettings();
+						this.unloadMinimap();
+					});
+
+				// 拖动功能
+				header.on('mousedown', (e) => {
+					isDragging = true;
+					const minimapNode = div.node();
+					if (!minimapNode) return;
+					const rect = minimapNode.getBoundingClientRect();
+					offsetX = e.clientX - rect.left;
+					offsetY = e.clientY - rect.top;
+					div.style('transition', 'none'); // 拖动时禁用过渡效果
+				});
+
+				d3.select('body').on('mousemove', (e) => {
+					if (isDragging) {
+						div
+							.style('left', (e.clientX - offsetX) + 'px')
+							.style('top', (e.clientY - offsetY) + 'px');
+					}
+				}).on('mouseup', () => {
+					if (isDragging) {
+						isDragging = false;
+						div.style('transition', 'box-shadow 0.2s ease'); // 拖动结束后恢复过渡效果
+						
+						// 保存当前位置
+						const left = parseFloat(div.style('left'));
+						const top = parseFloat(div.style('top'));
+						this.settings.positionX = left;
+						this.settings.positionY = top;
+						this.saveSettings();
+					}
+				});
 
 				// markers
 				const svg = div.append('svg')
@@ -474,8 +620,93 @@ export default class CanvasMinimap extends Plugin {
 						d === "arrowhead-start" ? "10 0, 0 3.5, 10 7" : "0 0, 10 3.5, 0 7"
 					);
 
-				minimap = container.select('#_minimap_')
+					// 添加缩放和平移功能的变量
+				let isSvgDragging = false;
+				let isRightDragging = false; // 专门用于右键拖动
+				let lastX = 0;
+				let lastY = 0;
+				
+				// 添加鼠标事件处理
+				svg.on('mousedown', (e: MouseEvent) => {
+					if (e.button === 0) { // 左键
+						isSvgDragging = true;
+						lastX = e.clientX;
+						lastY = e.clientY;
+						svg.style('cursor', 'grabbing');
+					} else if (e.button === 2) { // 右键
+						e.preventDefault(); // 阻止右键菜单
+						isRightDragging = true;
+						lastX = e.clientX;
+						lastY = e.clientY;
+						svg.style('cursor', 'grabbing');
+					}
+				});
+				
+				// 添加全局鼠标移动事件
+				const handleSvgMouseMove = (e: MouseEvent) => {
+					if (isSvgDragging || isRightDragging) {
+						const deltaX = e.clientX - lastX;
+						const deltaY = e.clientY - lastY;
+						
+						// 获取当前viewBox
+						const viewBox = svg.attr("viewBox").split(' ').map(Number);
+						const [x, y, width, height] = viewBox;
+						
+						// 计算平移量（根据缩放级别调整）
+						const scaleX = this.settings.width / width;
+						const scaleY = this.settings.height / height;
+						const actualDeltaX = -deltaX / scaleX;
+						const actualDeltaY = -deltaY / scaleY;
+						
+						// 更新viewBox以实现平移
+						svg.attr(
+							"viewBox",
+							`${x + actualDeltaX} ${y + actualDeltaY} ${width} ${height}`
+						);
+						
+						// 更新上次鼠标位置
+						lastX = e.clientX;
+						lastY = e.clientY;
+					}
+				};
+				
+				const handleSvgMouseUp = (e: MouseEvent) => {
+					if (isSvgDragging || isRightDragging) {
+						isSvgDragging = false;
+						isRightDragging = false;
+						svg.style('cursor', 'grab');
+					}
+				};
+
+				// 添加事件监听器到文档上，以确保即使鼠标移出小地图区域也能正常工作
+				document.addEventListener('mousemove', handleSvgMouseMove);
+				document.addEventListener('mouseup', handleSvgMouseUp);
+				document.addEventListener('contextmenu', (e: MouseEvent) => {
+					if (isRightDragging) {
+						e.preventDefault();
+						return false;
+					}
+				});
+
+				// 在插件卸载时清理事件监听器
+				this.register(() => {
+					document.removeEventListener('mousemove', handleSvgMouseMove);
+					document.removeEventListener('mouseup', handleSvgMouseUp);
+					document.removeEventListener('contextmenu', (e: MouseEvent) => {
+						if (isRightDragging) {
+							e.preventDefault();
+							return false;
+						}
+					});
+				});
+
+				minimap = d3.select('#_minimap_')
 				svg.on('click', (e: any) => {
+					if (isSvgDragging || isRightDragging) {
+						// 如果正在进行任何拖动操作，则不执行点击操作
+						return;
+					}
+					
 					const active_canvas = this.getActiveCanvas()
 
 					const p = d3.pointer(e)
@@ -513,67 +744,210 @@ export default class CanvasMinimap extends Plugin {
 					}
 
 				})
-				container.on('click', (e: any) => {
-					// locate rect of minimap
-					//const [x, y] = d3.pointer(e)
-					// cant register click on svg, so we dispatch click event to the svg /facepalm
-					svg.node()?.dispatchEvent(new MouseEvent('click', {
-						bubbles: false, clientX: e.clientX, clientY: e.clientY, ctrlKey: e.ctrlKey,
-						altKey: e.altKey, shiftKey: e.shiftKey, metaKey: e.metaKey
-					}))
+
+				// 添加鼠标滚轮事件，用于缩放小地图内部视图
+				svg.on('wheel', (e: WheelEvent) => {
+					if (e.ctrlKey) {
+						// 阻止默认滚动行为
+						e.preventDefault();
+						
+						const maxZoomFactor = 20; // 最大放大倍数
+						const baseViewWidth = this.canvas_bounds.width();
+						const baseViewHeight = this.canvas_bounds.height();
+						
+						// 获取当前viewBox
+						const viewBox = svg.attr("viewBox").split(' ').map(Number);
+						const [currentX, currentY, currentWidth, currentHeight] = viewBox;
+						
+						// 获取鼠标相对于SVG的位置
+						const mousePosition = d3.pointer(e, svg.node());
+						const [mouseX, mouseY] = mousePosition;
+						
+						// 计算缩放因子
+						const zoomFactor = e.deltaY < 0 ? 0.9 : 1.1; // 向上滚动放大，向下滚动缩小
+						
+						// 计算新的宽高
+						const newWidth = Math.max(50, Math.min(baseViewWidth, currentWidth * zoomFactor)); // 限制最小范围
+						const newHeight = Math.max(50, Math.min(baseViewHeight, currentHeight * zoomFactor));
+						
+						// 计算缩放后的新坐标，以保持鼠标位置下的内容不变
+						const newCenterX = currentX + (mouseX - currentX) * (1 - newWidth/currentWidth);
+						const newCenterY = currentY + (mouseY - currentY) * (1 - newHeight/currentHeight);
+						
+						// 更新SVG的viewBox
+						svg.attr(
+							"viewBox",
+							`${newCenterX} ${newCenterY} ${newWidth} ${newHeight}`
+						);
+					}
 				})
 
-
-				// rearrange toolbar
-				if(this.settings.hijackToolbar){
-					if(container.select('#_minimap_toolbar_').empty()){
-						let toolbar_clone = container.select('.canvas-controls').clone(true)
-						
-						container.append(() => toolbar_clone.node())
-						toolbar_clone.attr('id', '_minimap_toolbar_').style('display', 'flex')
-						
-						// get minimap position
-						setTimeout(()=>{
-							const minimap_pos = new Vector2((minimap.node() as HTMLElement)?.offsetLeft, (minimap.node() as HTMLElement)?.offsetTop)
-							toolbar_clone
-							.style('position', 'absolute')
-							.style('left', `${minimap_pos?.x}px`)
-							.style('top', `${minimap_pos?.y - top_offset}px`)
-							.style('z-index', '1001')
-							.style('flex-direction', 'row')
-							.style('justify-content', 'flex-start')
-							.style('align-items', 'top')
-							.style('padding', '0')
-							.style('margin', '0')
-							.style('background-color', 'transparent')
-							.style('border', 'none')
-							toolbar_clone.selectAll('.canvas-control-group').style('flex-direction', 'row')		
-						}, 500)
-					}
-					// toolbar event routing
-					// TODO: optimize this later
-					const minimap_toolbar = container.selectAll('.canvas-controls').filter("#_minimap_toolbar_")
+				// 创建四个边缘和角落的调整大小区域
+				const createResizeArea = (position: string) => {
+					const resizeArea = div.append('div')
+						.attr('class', `minimap-resize-area minimap-resize-${position}`)
+						.style('position', 'absolute')
+						.style('background-color', 'transparent') // 完全透明
+						.style('z-index', '42')
+						.style('cursor', position.includes('right') ? 'e-resize' : 'w-resize')
+						.style('pointer-events', 'auto'); // 确保可以接收鼠标事件
 					
-					minimap_toolbar.selectAll('.canvas-control-item').select(function(d:any, i:number, nodes:any){
-						d3.select(this).on('click', (e:any)=>{						
-							toolbar.selectAll('.canvas-control-item').filter((_:any, idx:number) => idx == i ).dispatch('click')
-						})
-						return this;
-					})
-					// hide original toolbar
-					toolbar.style('display', 'none')
-				}else{
-					// reset toolbar visibility
-					toolbar.style('display', 'flex')
+					// 设置不同位置的尺寸和光标
+					if (position === 'top') {
+						resizeArea
+							.style('top', '0')
+							.style('left', '4px') // 避开角落区域
+							.style('width', `calc(100% - 4px)`) // 避开左右角落
+							.style('height', '4px')
+							.style('cursor', 'n-resize');
+					} else if (position === 'bottom') {
+						resizeArea
+							.style('bottom', '0')
+							.style('left', '4px')
+							.style('width', `calc(100% - 4px)`)
+							.style('height', '4px')
+							.style('cursor', 's-resize');
+					} else if (position === 'left') {
+						resizeArea
+							.style('top', '4px') // 避开角落区域
+							.style('left', '0')
+							.style('width', '4px')
+							.style('height', `calc(100% - 4px)`) // 避开上下角落
+							.style('cursor', 'w-resize');
+					} else if (position === 'right') {
+						resizeArea
+							.style('top', '4px')
+							.style('right', '0')
+							.style('width', '4px')
+							.style('height', `calc(100% - 4px)`)
+							.style('cursor', 'e-resize');
+					} else if (position === 'top-left') {
+						resizeArea
+							.style('top', '0')
+							.style('left', '0')
+							.style('width', '4px')
+							.style('height', '4px')
+							.style('cursor', 'nw-resize');
+					} else if (position === 'top-right') {
+						resizeArea
+							.style('top', '0')
+							.style('right', '0')
+							.style('width', '4px')
+							.style('height', '4px')
+							.style('cursor', 'ne-resize');
+					} else if (position === 'bottom-left') {
+						resizeArea
+							.style('bottom', '0')
+							.style('left', '0')
+							.style('width', '4px')
+							.style('height', '4px')
+							.style('cursor', 'sw-resize');
+					} else if (position === 'bottom-right') {
+						resizeArea
+							.style('bottom', '0')
+							.style('right', '0')
+							.style('width', '4px')
+							.style('height', '4px')
+							.style('cursor', 'se-resize');
+					}
+					
+					return resizeArea;
+				};
+				
+				// 创建八个调整大小区域（四边+四角）
+				const resizeAreas: {[key: string]: any} = {};
+				const positions = ['top', 'right', 'bottom', 'left', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
+				
+				for (const pos of positions) {
+					resizeAreas[pos] = createResizeArea(pos);
 				}
+				
+				// 调整大小功能
+				const startResize = (e: MouseEvent, horizontal: 'left' | 'right' | 'both', vertical: 'top' | 'bottom' | 'both') => {
+					e.preventDefault();
+					e.stopPropagation();
+					
+					const startX = e.clientX;
+					const startY = e.clientY;
+					const startWidth = parseFloat(div.style('width'));
+					const startHeight = parseFloat(div.style('height'));
+					const startLeft = parseFloat(div.style('left'));
+					const startTop = parseFloat(div.style('top'));
+					
+					const handleMouseMove = (e: MouseEvent) => {
+						const deltaX = e.clientX - startX;
+						const deltaY = e.clientY - startY;
+						
+						let newWidth = startWidth;
+						let newHeight = startHeight;
+						let newLeft = startLeft;
+						let newTop = startTop;
+						
+						if (horizontal === 'right' || horizontal === 'both') {
+							newWidth = Math.max(200, startWidth + deltaX); // 最小宽度200px
+						} else if (horizontal === 'left') {
+							const potentialNewWidth = startWidth - deltaX;
+							if (potentialNewWidth >= 200) { // 最小宽度200px
+								newWidth = potentialNewWidth;
+								newLeft = startLeft + deltaX;
+							}
+						}
+						
+						if (vertical === 'bottom' || vertical === 'both') {
+							newHeight = Math.max(150, startHeight + deltaY); // 最小高度150px
+						} else if (vertical === 'top') {
+							const potentialNewHeight = startHeight - deltaY;
+							if (potentialNewHeight >= 150) { // 最小高度150px
+								newHeight = potentialNewHeight;
+								newTop = startTop + deltaY;
+							}
+						}
+						
+						// 更新样式
+						div.style('width', newWidth + 'px')
+						   .style('height', newHeight + 'px')
+						   .style('left', newLeft + 'px')
+						   .style('top', newTop + 'px');
+						
+						// 更新设置中的尺寸
+						this.settings.width = newWidth;
+						this.settings.height = newHeight;
+						this.settings.positionX = newLeft;
+						this.settings.positionY = newTop;
+						this.saveSettings();
+						
+						// 重新渲染小地图以适应新的尺寸
+						this.renderMinimap(d3.select('#_minimap_>svg'), active_canvas);
+					};
+					
+					const handleMouseUp = () => {
+						document.removeEventListener('mousemove', handleMouseMove);
+						document.removeEventListener('mouseup', handleMouseUp);
+					};
+					
+					document.addEventListener('mousemove', handleMouseMove);
+					document.addEventListener('mouseup', handleMouseUp);
+				};
+				
+				// 为各个调整区域添加事件监听器
+				resizeAreas['right'].on('mousedown', (e: MouseEvent) => startResize(e, 'right', 'both'));
+				resizeAreas['left'].on('mousedown', (e: MouseEvent) => startResize(e, 'left', 'both'));
+				resizeAreas['bottom'].on('mousedown', (e: MouseEvent) => startResize(e, 'both', 'bottom'));
+				resizeAreas['top'].on('mousedown', (e: MouseEvent) => startResize(e, 'both', 'top'));
+				resizeAreas['top-left'].on('mousedown', (e: MouseEvent) => startResize(e, 'left', 'top'));
+				resizeAreas['top-right'].on('mousedown', (e: MouseEvent) => startResize(e, 'right', 'top'));
+				resizeAreas['bottom-left'].on('mousedown', (e: MouseEvent) => startResize(e, 'left', 'bottom'));
+				resizeAreas['bottom-right'].on('mousedown', (e: MouseEvent) => startResize(e, 'right', 'bottom'));
+				// 不再需要在container上注册点击事件，因为svg已经能接收点击事件了
 			}
 
-			this.renderMinimap(container.select('#_minimap_>svg'), active_canvas)
+			this.renderMinimap(d3.select('#_minimap_>svg'), active_canvas)
 		}
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const loadedData = await this.loadData();
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
 	}
 
 	async saveSettings() {
@@ -602,8 +976,10 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 			.addText(text => text
 				.setValue(this.plugin.settings.width.toString())
 				.onChange(async (value) => {
-					this.plugin.settings.width = parseInt(value);
-					await this.plugin.saveSettings();
+					if(value && !isNaN(Number(value))){
+						this.plugin.settings.width = parseInt(value);
+						await this.plugin.saveSettings();
+					}
 				}));
 
 		new Setting(containerEl)
@@ -612,9 +988,11 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 			.addText(text => text
 				.setValue(this.plugin.settings.height.toString())
 				.onChange(async (value) => {
+				if(value && !isNaN(Number(value))){ 
 					this.plugin.settings.height = parseInt(value);
 					await this.plugin.saveSettings();
-				}));
+				}
+			}));
 
 		new Setting(containerEl)
 			.setName(t('margin'))
@@ -625,6 +1003,28 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 					this.plugin.settings.margin = parseInt(value);
 					await this.plugin.saveSettings();
 				}));
+
+			// 添加透明度设置
+		new Setting(containerEl)
+			.setName(t('minimapOpacity'))
+			.setDesc(t('minimapOpacityDesc'))
+			.addSlider(slider => slider
+				.setLimits(0.1, 1, 0.05)
+				.setValue(this.plugin.settings.minimapOpacity)
+				.onChange(async (value) => {
+					this.plugin.settings.minimapOpacity = value;
+					await this.plugin.saveSettings();
+				}))
+			.addExtraButton(button => button
+				.setIcon('reset')
+				.setTooltip('Reset to default')
+				.onClick(async () => {
+					this.plugin.settings.minimapOpacity = DEFAULT_SETTINGS.minimapOpacity;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+
 
 		new Setting(containerEl)
 			.setName(t('fontSize'))
@@ -646,7 +1046,7 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-
+		// 修改位置设置，添加下拉框和应用按钮
 		new Setting(containerEl)
 			.setName(t('side'))
 			.setDesc(t('sideDesc'))
@@ -661,6 +1061,13 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.side = value as MinimapSide;
 					await this.plugin.saveSettings();
+				}))
+			.addButton(button => button
+				.setButtonText(t('applyPosition'))
+				.setCta()
+				.onClick(async () => {
+					// 只重置一次位置，不锁定
+					this.plugin.moveToPresetPosition();
 				}));
 
 		new Setting(containerEl)
