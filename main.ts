@@ -912,10 +912,12 @@ export default class CanvasMinimap extends Plugin {
 					const startLeft = parseFloat(div.style('left'));
 					const startTop = parseFloat(div.style('top'));
 					
-					// 添加防抖功能，延迟重新渲染
-					let resizeTimeout: number | null = null;
+					// 只在鼠标抬起时执行最终操作，不使用中间防抖
+					let isResizing = true; // 添加标志表示是否正在调整大小
 					
 					const handleMouseMove = (e: MouseEvent) => {
+						if (!isResizing) return; // 如果不在调整大小状态，直接返回
+						
 						const deltaX = e.clientX - startX;
 						const deltaY = e.clientY - startY;
 						
@@ -950,31 +952,18 @@ export default class CanvasMinimap extends Plugin {
 						   .style('left', newLeft + 'px')
 						   .style('top', newTop + 'px');
 						
-						// 更新设置中的尺寸
+						// 更新设置中的尺寸（实时更新，但不触发重新渲染）
 						this.settings.width = newWidth;
 						this.settings.height = newHeight;
 						this.settings.positionX = newLeft;
 						this.settings.positionY = newTop;
-						
-						// 防抖：清除之前的定时器
-						if (resizeTimeout) {
-							window.clearTimeout(resizeTimeout);
-						}
-						
-						// 设置新的定时器，只在停止调整后重新渲染
-						resizeTimeout = window.setTimeout(() => {
-							this.saveSettings();
-							// 重新渲染小地图以适应新的尺寸
-							this.renderMinimap(d3.select('#_minimap_>svg'), active_canvas);
-						}, 100); // 100ms后重新渲染
 					};
 					
 					const handleMouseUp = () => {
-						// 在鼠标释放时确保最终的设置被保存
-						if (resizeTimeout) {
-							window.clearTimeout(resizeTimeout);
-						}
-						// 立即保存最终设置
+						if (!isResizing) return; // 如果已经结束，直接返回
+						isResizing = false; // 设置标志为false，表示不再调整大小
+						
+						// 立即保存最终设置并重新渲染
 						this.saveSettings();
 						// 重新渲染小地图以适应新的尺寸
 						this.renderMinimap(d3.select('#_minimap_>svg'), active_canvas);
