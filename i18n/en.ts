@@ -43,6 +43,10 @@ const translations = {
 	'minimapOpacity': 'Opacity',
 	'minimapOpacityDesc': 'Customize the opacity of the minimap',
 	'mapDesc': 'Toggle the minimap',
+	'titleBarColor': 'Title Bar Color',
+	'titleBarColorDesc': 'Customize the color of the minimap title bar',
+	'titleTextColor': 'Title Text Color',
+	'titleTextColorDesc': 'Customize the color of the minimap title text'
 };
 
 export default translations;

@@ -106,6 +106,8 @@ interface CanvasMinimapSettings {
 	positionX: number;
 	positionY: number;
 	minimapOpacity: number;
+	titleBarColor: string;
+	titleTextColor: string;
 }
 
 const DEFAULT_SETTINGS: CanvasMinimapSettings = {
@@ -125,7 +127,9 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	secondaryNavigationStrategy: 'PAN',
 	positionX: 0,
 	positionY: 0,
-	minimapOpacity: 1
+	minimapOpacity: 1,
+	titleBarColor: 'rgba(0,0,0,0.3)',
+	titleTextColor: 'white'
 }
 
 export default class CanvasMinimap extends Plugin {
@@ -543,7 +547,7 @@ export default class CanvasMinimap extends Plugin {
 					.style('left', '0')
 					.style('right', '0')
 					.style('height', '20px')
-					.style('background-color', 'rgba(0,0,0,0.3)')
+					.style('background-color', this.settings.titleBarColor)
 					.style('cursor', 'move')
 					.style('display', 'flex')
 					.style('justify-content', 'space-between')
@@ -554,7 +558,7 @@ export default class CanvasMinimap extends Plugin {
 				header.append('span')
 					.attr('class', 'minimap-title')
 					.text('Canvas Minimap')
-					.style('color', 'white')
+					.style('color', this.settings.titleTextColor)
 					.style('font-size', '10px')
 					.style('font-weight', 'bold');
 
@@ -1067,7 +1071,50 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.fontColor = value;
 					await this.plugin.saveSettings();
-				}));
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.fontColor)
+					.onChange(async (value) => {
+						this.plugin.settings.fontColor = value;
+						await this.plugin.saveSettings();
+					}));
+		
+		// 标题栏背景色设置
+		new Setting(containerEl)
+			.setName(t('titleBarColor'))
+			.setDesc(t('titleBarColorDesc'))
+			.addText(text => text
+				.setValue(this.plugin.settings.titleBarColor)
+				.onChange(async (value) => {
+					this.plugin.settings.titleBarColor = value;
+					await this.plugin.saveSettings();
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.titleBarColor)
+					.onChange(async (value) => {
+						this.plugin.settings.titleBarColor = value;
+						await this.plugin.saveSettings();
+					}));
+		
+		// 标题文字颜色设置
+		new Setting(containerEl)
+			.setName(t('titleTextColor'))
+			.setDesc(t('titleTextColorDesc'))
+			.addText(text => text
+				.setValue(this.plugin.settings.titleTextColor)
+				.onChange(async (value) => {
+					this.plugin.settings.titleTextColor = value;
+					await this.plugin.saveSettings();
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.titleTextColor)
+					.onChange(async (value) => {
+						this.plugin.settings.titleTextColor = value;
+						await this.plugin.saveSettings();
+					}));
 
 		new Setting(containerEl)
 			.setName(t('backgroundColor'))
@@ -1077,7 +1124,15 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.backgroundColor = value;
 					await this.plugin.saveSettings();
-				}));
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.backgroundColor)
+					.onChange(async (value) => {
+						this.plugin.settings.backgroundColor = value;
+						await this.plugin.saveSettings();
+					}));
+
 
 		new Setting(containerEl)
 			.setName(t('groupColor'))
@@ -1087,8 +1142,31 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.groupColor = value;
 					await this.plugin.saveSettings();
-				}));
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.groupColor)
+					.onChange(async (value) => {
+						this.plugin.settings.groupColor = value;
+						await this.plugin.saveSettings();
+					}));
 
+		new Setting(containerEl)
+			.setName(t('nodeColor'))
+			.setDesc(t('nodeColorDesc'))
+			.addText(text => text
+				.setValue(this.plugin.settings.nodeColor)
+				.onChange(async (value) => {
+					this.plugin.settings.nodeColor = value;
+					await this.plugin.saveSettings();
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.nodeColor)
+					.onChange(async (value) => {
+						this.plugin.settings.nodeColor = value;
+						await this.plugin.saveSettings();
+					}));
 		// new Setting(containerEl)
 		// 	.setName(t('hijackToolbar'))
 		// 	.setDesc(t('hijackToolbarDesc'))
