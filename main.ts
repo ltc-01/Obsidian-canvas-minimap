@@ -115,7 +115,7 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	height: 300,
 	margin: 800,
 	fontSize: 10,
-	fontColor: 'grey',
+	fontColor: '#d1d1d1',
 	side: 'bottom-right',
 	enabled: true,
 	backgroundColor: '#ffffff',
@@ -128,8 +128,8 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	positionX: 0,
 	positionY: 0,
 	minimapOpacity: 1,
-	titleBarColor: 'rgba(0,0,0,0.3)',
-	titleTextColor: 'white'
+	titleBarColor: '#00000008',
+	titleTextColor: '#00000077'
 }
 
 export default class CanvasMinimap extends Plugin {
@@ -1212,16 +1212,7 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 						this.plugin.settings.nodeColor = value;
 						await this.plugin.saveSettings();
 					}));
-		// new Setting(containerEl)
-		// 	.setName(t('hijackToolbar'))
-		// 	.setDesc(t('hijackToolbarDesc'))
-		// 	.addToggle(toggle => toggle
-		// 		.setValue(this.plugin.settings.hijackToolbar)
-		// 		.onChange(async (value) => {
-		// 			this.plugin.settings.hijackToolbar = value;
-		// 			await this.plugin.saveSettings();
-		// 		}));
-
+					
 		new Setting(containerEl)
 			.setName(t('drawActiveViewport'))
 			.setDesc(t('drawActiveViewportDesc'))
