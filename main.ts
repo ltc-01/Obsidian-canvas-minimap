@@ -164,7 +164,7 @@ export default class CanvasMinimap extends Plugin {
 
 				if (this.getActiveCanvas()) {
 					if (!checking) {
-						this.reloadMinimap()
+						this.resetMinimap()
 					}
 					return true;
 				}
@@ -439,6 +439,11 @@ export default class CanvasMinimap extends Plugin {
 	}
 
 	reloadMinimap() {
+		this.unloadMinimap()
+		this.setupMinimap()
+	}
+
+	resetMinimap() {
 		this.currentViewBox = null; // 重置当前viewBox以强制重新计算位置
 		this.unloadMinimap()
 		this.setupMinimap()
