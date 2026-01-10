@@ -138,6 +138,9 @@ export default class CanvasMinimap extends Plugin {
 	canvas_patched: boolean = false
 	canvas_event: CanvasEvent = new CanvasEvent()
 
+	// 添加一个属性保存当前的小地图位置，防止刷新后位置丢失
+	private currentViewBox: {x: number, y: number, width: number, height: number} | null = null;
+
 	async onload() {
 		await this.loadSettings();
 
@@ -251,13 +254,34 @@ export default class CanvasMinimap extends Plugin {
 			bbox.maxX + this.settings.margin,
 			bbox.maxY + this.settings.margin)
 		
-			svg.attr(
-				"viewBox",
-				`${this.canvas_bounds.minX} ${this.canvas_bounds.minY} ${this.canvas_bounds.width()} ${this.canvas_bounds.height()}`
-			)
-				.attr("preserveAspectRatio", "xMidYMid meet")
-				.attr("width", this.settings.width)
-				.attr("height", this.settings.height);
+		// 在设置新的viewBox之前，保存当前的viewBox状态
+		const currentSvg = svg.node();
+		if (currentSvg) {
+			const viewBoxAttr = currentSvg.getAttribute('viewBox');
+			if (viewBoxAttr) {
+				const [x, y, width, height] = viewBoxAttr.split(' ').map(Number);
+				// 仅当当前视图框不是初始状态时才保存（防止覆盖已有的自定义视图）
+				if (this.currentViewBox || 
+				    (x !== this.canvas_bounds.minX || y !== this.canvas_bounds.minY || 
+				     width !== this.canvas_bounds.width() || height !== this.canvas_bounds.height())) {
+					this.currentViewBox = {x, y, width, height};
+				}
+			}
+		}
+		
+		// 应用viewBox，优先使用保存的视图框状态
+		if (this.currentViewBox) {
+			// 确保保存的viewBox值在画布范围内
+			const clampedX = Math.max(this.canvas_bounds.minX, Math.min(this.currentViewBox.x, this.canvas_bounds.maxX - this.currentViewBox.width));
+			const clampedY = Math.max(this.canvas_bounds.minY, Math.min(this.currentViewBox.y, this.canvas_bounds.maxY - this.currentViewBox.height));
+			const clampedWidth = Math.min(this.currentViewBox.width, this.canvas_bounds.width());
+			const clampedHeight = Math.min(this.currentViewBox.height, this.canvas_bounds.height());
+			
+			svg.attr("viewBox", `${clampedX} ${clampedY} ${clampedWidth} ${clampedHeight}`);
+		} else {
+			// 使用默认的viewBox
+			svg.attr("viewBox", `${this.canvas_bounds.minX} ${this.canvas_bounds.minY} ${this.canvas_bounds.width()} ${this.canvas_bounds.height()}`);
+		}
 			
 			
 			let bg = svg.append('g')
@@ -417,6 +441,7 @@ export default class CanvasMinimap extends Plugin {
 	}
 
 	reloadMinimap() {
+		this.currentViewBox = null; // 重置当前viewBox以强制重新计算位置
 		this.unloadMinimap()
 		this.setupMinimap()
 	}
@@ -618,7 +643,7 @@ export default class CanvasMinimap extends Plugin {
 				let lastX = 0;
 				let lastY = 0;
 				
-				// 添加鼠标事件处理
+					// 添加鼠标事件处理
 				svg.on('mousedown', (e: MouseEvent) => {
 					if (e.button === 0) { // 左键
 						isSvgDragging = true;
@@ -651,10 +676,21 @@ export default class CanvasMinimap extends Plugin {
 						const actualDeltaY = -deltaY / scaleY;
 						
 						// 更新viewBox以实现平移
+						const newX = x + actualDeltaX;
+						const newY = y + actualDeltaY;
+						
 						svg.attr(
 							"viewBox",
-							`${x + actualDeltaX} ${y + actualDeltaY} ${width} ${height}`
+							`${newX} ${newY} ${width} ${height}`
 						);
+						
+						// 更新保存的viewBox状态
+						this.currentViewBox = {
+							x: newX,
+							y: newY,
+							width: width,
+							height: height
+						};
 						
 						// 更新上次鼠标位置
 						lastX = e.clientX;
@@ -669,6 +705,7 @@ export default class CanvasMinimap extends Plugin {
 						svg.style('cursor', 'grab');
 					}
 				};
+
 
 				// 添加事件监听器到文档上，以确保即使鼠标移出小地图区域也能正常工作
 				document.addEventListener('mousemove', handleSvgMouseMove);
@@ -771,6 +808,14 @@ export default class CanvasMinimap extends Plugin {
 							"viewBox",
 							`${newCenterX} ${newCenterY} ${newWidth} ${newHeight}`
 						);
+						
+						// 保存当前viewBox状态
+						this.currentViewBox = {
+							x: newCenterX,
+							y: newCenterY,
+							width: newWidth,
+							height: newHeight
+						};
 					}
 				})
 
