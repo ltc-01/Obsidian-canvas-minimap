@@ -47,7 +47,12 @@ const translations = {
 	'titleBarColorDesc': '自定义小地图的标题栏颜色',
 	'titleTextColor': '标题文本颜色',
 	'titleTextColorDesc': '自定义小地图的标题文本颜色',
-
+	'useCanvasColors': '使用画布颜色',
+	'useCanvasColorsDesc': '使用 Obsidian Canvas 中设置的颜色，而不是自定义颜色',
+	'groupOpacity': '分组透明度',
+	'groupOpacityDesc': '自定义小地图中分组节点的透明度',
+	'nodeOpacity': '节点透明度',
+	'nodeOpacityDesc': '自定义小地图中节点的透明度',
 };
 
 export default translations;

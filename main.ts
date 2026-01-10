@@ -108,6 +108,9 @@ interface CanvasMinimapSettings {
 	minimapOpacity: number;
 	titleBarColor: string;
 	titleTextColor: string;
+	useCanvasColors: boolean;
+	groupOpacity: number;
+	nodeOpacity: number;
 }
 
 const DEFAULT_SETTINGS: CanvasMinimapSettings = {
@@ -129,7 +132,54 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	positionY: 0,
 	minimapOpacity: 1,
 	titleBarColor: '#00000008',
-	titleTextColor: '#00000077'
+	titleTextColor: '#00000077',
+	groupOpacity: 0.07,
+	nodeOpacity: 0.07,
+	useCanvasColors: true,
+}
+
+function convertNodeColor(color: string) {
+    if (!color) return '#c0c0c0';
+	if (color.startsWith('#')) return color;
+	switch (color) {
+		case '1':
+			return '#e93147';
+		case '2':
+			return '#ec7500';
+		case '3':
+			return '#e0ac00';
+		case '4':
+			return '#08b94e';
+		case '5':
+			return '#00bfbc';
+		case '6':
+			return '#7852ee';
+		default:
+			return '#c0c0c0';
+	}
+}
+
+function addOpacityToHexColor(color: string, opacity: number): string {
+    // 确保颜色值以#开头
+    if (!color.startsWith('#')) {
+        console.error('Color must be in hex format starting with #');
+		return color;
+    }
+    
+    // 移除 # 符号
+    let hex = color.substring(1);
+    
+    // 确保是6位十六进制数
+    if (hex.length !== 6) {
+        console.error('Color must be in #RRGGBB format');
+		return color;
+    }
+    
+    // 将透明度转换为十六进制值 (0-255 to 00-FF)
+    const opacityHex = Math.round(opacity * 255).toString(16).padStart(2, '0');
+    
+    // 组合颜色和透明度
+    return `#${hex}${opacityHex}`;
 }
 
 export default class CanvasMinimap extends Plugin {
@@ -240,6 +290,9 @@ export default class CanvasMinimap extends Plugin {
 			bbox.minY = Math.min(bbox.minY, node.y);
 			bbox.maxX = Math.max(bbox.maxX, node.x + node.width);
 			bbox.maxY = Math.max(bbox.maxY, node.y + node.height);
+			// console.log('Node properties:', Object.keys(node));
+    		// console.log('Full node data:', node);
+			const nodeCanvasColor = node.color || '';
 			if (node.unknownData?.type === 'group') {
 				groups.set(node.id, node)
 			} else {
@@ -293,6 +346,8 @@ export default class CanvasMinimap extends Plugin {
 		groups.forEach((n: any) => {
 			const g = fg.append('g')
 			const rect = g.append("rect");
+			const strokeColor = convertNodeColor(n.color || '#c0c0c0');
+			const fillColor = addOpacityToHexColor(strokeColor, this.settings.groupOpacity);
 
 			const props = Object.entries(n);
 			for (const [k, v] of props) {
@@ -300,9 +355,12 @@ export default class CanvasMinimap extends Plugin {
 				if (k === 'x' || k === 'y' || k === 'width' || k === 'height' || k === 'id')
 					rect.attr(k, v);
 			}
-			rect.attr("stroke", "darkblue");
-			rect.attr("fill", this.settings.groupColor);
-			
+			if(this.settings.useCanvasColors){
+				rect.attr("stroke", strokeColor);
+				rect.attr("fill", fillColor);
+			} else {
+				rect.attr("fill", this.settings.groupColor);
+			}
 
 			const label: string = n.label
 			if (label) {
@@ -328,12 +386,20 @@ export default class CanvasMinimap extends Plugin {
 			const g = fg.append('g')
 			const rect = g.append("rect");
 			const props = Object.entries(n);
+			const strokeColor = convertNodeColor(n.color || '#c0c0c0');
+			const fillColor = addOpacityToHexColor(strokeColor, this.settings.nodeOpacity);
 			for (const [k, v] of props) {
 				if (k === 'x' || k === 'y' || k === 'width' || k === 'height' || k === 'id')
 					rect.attr(k, v);
 			}
-			//rect.attr("stroke", "blue");
-			rect.attr("fill", this.settings.nodeColor);
+			
+			if(this.settings.useCanvasColors){
+				rect.attr("stroke", strokeColor);
+				rect.attr("fill", fillColor);
+			} else {
+				rect.attr("fill", this.settings.nodeColor);
+			}
+
 		})
 		edges.forEach((e: any) => {
 			const fromPos = sidePositionOf(e.from.node, e.from.side);
@@ -1188,8 +1254,43 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}));
 
-
+		// 添加使用 Canvas 颜色的开关
 		new Setting(containerEl)
+			.setName('Use Canvas Colors')
+			.setDesc('Use colors as set in the Obsidian canvas instead of custom colors')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.useCanvasColors)
+				.onChange(async (value) => {
+					this.plugin.settings.useCanvasColors = value;
+					await this.plugin.saveSettings();
+					this.display(); // 重新渲染设置界面
+				}));
+
+		if (this.plugin.settings.useCanvasColors) { 
+			// 显示透明度设置
+			new Setting(containerEl)
+				.setName('Group Opacity')
+				.setDesc('Opacity for group colors from canvas')
+				.addSlider(slider => slider
+					.setLimits(0, 1, 0.05)
+					.setValue(this.plugin.settings.groupOpacity)
+					.onChange(async (value) => {
+						this.plugin.settings.groupOpacity = value;
+						await this.plugin.saveSettings();
+					}));
+
+			new Setting(containerEl)
+				.setName('Node Opacity')
+				.setDesc('Opacity for node colors from canvas')
+				.addSlider(slider => slider
+					.setLimits(0, 1, 0.05)
+					.setValue(this.plugin.settings.nodeOpacity)
+					.onChange(async (value) => {
+						this.plugin.settings.nodeOpacity = value;
+						await this.plugin.saveSettings();
+					}));
+		} else {
+		    new Setting(containerEl)
 			.setName(t('groupColor'))
 			.setDesc(t('groupColorDesc'))
 			.addText(text => text
@@ -1222,6 +1323,9 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 						this.plugin.settings.nodeColor = value;
 						await this.plugin.saveSettings();
 					}));
+		}
+
+		
 
 		new Setting(containerEl)
 			.setName(t('drawActiveViewport'))
