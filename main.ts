@@ -182,6 +182,76 @@ function addOpacityToHexColor(color: string, opacity: number): string {
     return `#${hex}${opacityHex}`;
 }
 
+function blendColorWithOpacity(color: string, opacity: number): string {
+    // 确保透明度在有效范围内
+    opacity = Math.max(0, Math.min(1, opacity));
+    const backgroundColor = '#ffffff'
+    // 验证输入颜色格式
+    if (!color.startsWith('#')) {
+        console.error('Color must be in hex format starting with #');
+        return backgroundColor;
+    }
+    
+    // 确保背景色是有效的六位十六进制颜色
+    if (!backgroundColor.startsWith('#') || backgroundColor.length !== 7) {
+        console.error('Background color must be in #RRGGBB format');
+        return backgroundColor;
+    }
+    
+    // 解析输入颜色
+    let hex = color.substring(1);
+    let r, g, b;
+    
+    // 处理不同格式的输入颜色
+    if (hex.length === 8) { // #RRGGBBAA format
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+        // 使用参数中的透明度，而不是颜色本身的透明度
+        const effectiveAlpha = opacity;
+    } else if (hex.length === 6) { // #RRGGBB format
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+        // 输入颜色是不透明的，应用参数中的透明度
+        const effectiveAlpha = opacity;
+    } else if (hex.length === 4) { // #RGBA format
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+        // 使用参数中的透明度，而不是颜色本身的透明度
+        const effectiveAlpha = opacity;
+    } else if (hex.length === 3) { // #RGB format
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+        // 输入颜色是不透明的，应用参数中的透明度
+        const effectiveAlpha = opacity;
+    } else {
+        console.error('Invalid color format');
+        return backgroundColor;
+    }
+    
+    // 解析背景色
+    const bgR = parseInt(backgroundColor.substring(1, 3), 16);
+    const bgG = parseInt(backgroundColor.substring(3, 5), 16);
+    const bgB = parseInt(backgroundColor.substring(5, 7), 16);
+    
+    // 应用 Alpha 合成公式
+    // 最终颜色 = 前景颜色 * alpha + 背景颜色 * (1 - alpha)
+    const finalR = Math.round(r * opacity + bgR * (1 - opacity));
+    const finalG = Math.round(g * opacity + bgG * (1 - opacity));
+    const finalB = Math.round(b * opacity + bgB * (1 - opacity));
+    
+    // 转换回十六进制格式
+    const blendedHex = '#' + 
+        finalR.toString(16).padStart(2, '0') +
+        finalG.toString(16).padStart(2, '0') +
+        finalB.toString(16).padStart(2, '0');
+        
+    return blendedHex;
+}
+
 export default class CanvasMinimap extends Plugin {
 	settings: CanvasMinimapSettings;
 	canvas_bounds: BoundingBox = new BoundingBox()
@@ -337,14 +407,38 @@ export default class CanvasMinimap extends Plugin {
 		}
 			
 			
-			let bg = svg.append('g')
-				.attr('id', 'minimap_bg')
-			let fg = svg.append('g')
-				.attr('id', 'minimap_fg')
+		let bg = svg.append('g')
+			.attr('id', 'minimap_bg')
+		let mg = svg.append('g')
+			.attr('id', 'minimap_mg')
+		let fg = svg.append('g')
+			.attr('id', 'minimap_fg')
+		let ffg = svg.append('g')
+			.attr('id', 'minimap_ffg')
+
+		children.forEach((n: any) => {
+			const g = fg.append('g')
+			const rect = g.append("rect");
+			const props = Object.entries(n);
+			const strokeColor = convertNodeColor(n.color || '#c0c0c0');
+			const fillColor = blendColorWithOpacity(strokeColor, this.settings.nodeOpacity);
+			for (const [k, v] of props) {
+				if (k === 'x' || k === 'y' || k === 'width' || k === 'height' || k === 'id')
+					rect.attr(k, v);
+			}
 			
+			if(this.settings.useCanvasColors){
+				rect.attr("stroke", strokeColor);
+				rect.attr("fill", fillColor);
+			} else {
+				rect.attr("fill", this.settings.nodeColor);
+			}
+
+		})
+
 
 		groups.forEach((n: any) => {
-			const g = fg.append('g')
+			const g = mg.append('g')
 			const rect = g.append("rect");
 			const strokeColor = convertNodeColor(n.color || '#c0c0c0');
 			const fillColor = addOpacityToHexColor(strokeColor, this.settings.groupOpacity);
@@ -369,11 +463,11 @@ export default class CanvasMinimap extends Plugin {
 				const scale_y = this.settings.height / (bbox.maxY - bbox.minY)
 				const scale = Math.min(scale_x, scale_y)
 				const font_size = this.settings.fontSize / scale
-				const text = g.append("text")
+				const text = fg.append("text")
 				text
 					.text(label)
 					.attr("x", n.x)
-					.attr("y", n.y)
+					.attr("y", n.y - 30)
 					.attr("text-anchor", "left")
 					.attr("alignment-baseline", "left")
 					.attr("fill", this.settings.fontColor)
@@ -382,25 +476,7 @@ export default class CanvasMinimap extends Plugin {
 
 			}
 		})
-		children.forEach((n: any) => {
-			const g = fg.append('g')
-			const rect = g.append("rect");
-			const props = Object.entries(n);
-			const strokeColor = convertNodeColor(n.color || '#c0c0c0');
-			const fillColor = addOpacityToHexColor(strokeColor, this.settings.nodeOpacity);
-			for (const [k, v] of props) {
-				if (k === 'x' || k === 'y' || k === 'width' || k === 'height' || k === 'id')
-					rect.attr(k, v);
-			}
-			
-			if(this.settings.useCanvasColors){
-				rect.attr("stroke", strokeColor);
-				rect.attr("fill", fillColor);
-			} else {
-				rect.attr("fill", this.settings.nodeColor);
-			}
-
-		})
+		
 		edges.forEach((e: any) => {
 			const fromPos = sidePositionOf(e.from.node, e.from.side);
 			const toPos = sidePositionOf(e.to.node, e.to.side);
@@ -416,7 +492,7 @@ export default class CanvasMinimap extends Plugin {
 					target: [toPos.x, toPos.y]
 				});
 			//console.log(e, fromPos, toPos, link)
-			fg
+			mg
 				.append("path")
 				.attr("d", link)
 				//.attr("marker-end", "url(#arrowhead-end)")
@@ -426,7 +502,7 @@ export default class CanvasMinimap extends Plugin {
 
 		})
 
-		bg.append('rect')
+		ffg.append('rect')
 			.attr('id', 'minimap_viewport')
 			.attr('fill', 'none')
 
