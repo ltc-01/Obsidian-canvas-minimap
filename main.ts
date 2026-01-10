@@ -912,6 +912,9 @@ export default class CanvasMinimap extends Plugin {
 					const startLeft = parseFloat(div.style('left'));
 					const startTop = parseFloat(div.style('top'));
 					
+					// 添加防抖功能，延迟重新渲染
+					let resizeTimeout: number | null = null;
+					
 					const handleMouseMove = (e: MouseEvent) => {
 						const deltaX = e.clientX - startX;
 						const deltaY = e.clientY - startY;
@@ -952,13 +955,30 @@ export default class CanvasMinimap extends Plugin {
 						this.settings.height = newHeight;
 						this.settings.positionX = newLeft;
 						this.settings.positionY = newTop;
-						this.saveSettings();
 						
-						// 重新渲染小地图以适应新的尺寸
-						this.renderMinimap(d3.select('#_minimap_>svg'), active_canvas);
+						// 防抖：清除之前的定时器
+						if (resizeTimeout) {
+							window.clearTimeout(resizeTimeout);
+						}
+						
+						// 设置新的定时器，只在停止调整后重新渲染
+						resizeTimeout = window.setTimeout(() => {
+							this.saveSettings();
+							// 重新渲染小地图以适应新的尺寸
+							this.renderMinimap(d3.select('#_minimap_>svg'), active_canvas);
+						}, 100); // 100ms后重新渲染
 					};
 					
 					const handleMouseUp = () => {
+						// 在鼠标释放时确保最终的设置被保存
+						if (resizeTimeout) {
+							window.clearTimeout(resizeTimeout);
+						}
+						// 立即保存最终设置
+						this.saveSettings();
+						// 重新渲染小地图以适应新的尺寸
+						this.renderMinimap(d3.select('#_minimap_>svg'), active_canvas);
+						
 						document.removeEventListener('mousemove', handleMouseMove);
 						document.removeEventListener('mouseup', handleMouseUp);
 					};
