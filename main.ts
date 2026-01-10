@@ -353,8 +353,6 @@ export default class CanvasMinimap extends Plugin {
 			fg
 				.append("path")
 				.attr("d", link)
-
-				//修改 - 删除了箭头，以免在小地图上看起来很乱
 				//.attr("marker-end", "url(#arrowhead-end)")
 				.attr("stroke", "grey")
 				.attr("stroke-width", 8)
@@ -531,10 +529,8 @@ export default class CanvasMinimap extends Plugin {
 					.style('z-index', '40') // 降低层级，避免覆盖设置界面
 					.style('opacity', this.settings.minimapOpacity) // 使用设置的透明度
 					.style('pointer-events', 'all') // 允许交互
-					// .style('border', '2px solid #808080')
 					.style('border-radius', '5px')
 					.style('overflow', 'hidden')
-					// .style('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')
 
 				// 根据设置的位置属性放置小地图，如果未设置则使用预设位置
 				if (this.settings.positionX !== 0 || this.settings.positionY !== 0) {
@@ -1212,7 +1208,7 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 						this.plugin.settings.nodeColor = value;
 						await this.plugin.saveSettings();
 					}));
-					
+
 		new Setting(containerEl)
 			.setName(t('drawActiveViewport'))
 			.setDesc(t('drawActiveViewportDesc'))
