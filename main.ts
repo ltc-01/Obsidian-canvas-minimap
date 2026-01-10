@@ -106,6 +106,8 @@ interface CanvasMinimapSettings {
 	positionX: number;
 	positionY: number;
 	minimapOpacity: number;
+	titleBarColor: string;
+	titleTextColor: string;
 }
 
 const DEFAULT_SETTINGS: CanvasMinimapSettings = {
@@ -113,7 +115,7 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	height: 300,
 	margin: 800,
 	fontSize: 10,
-	fontColor: 'grey',
+	fontColor: '#d1d1d1',
 	side: 'bottom-right',
 	enabled: true,
 	backgroundColor: '#ffffff',
@@ -125,7 +127,9 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	secondaryNavigationStrategy: 'PAN',
 	positionX: 0,
 	positionY: 0,
-	minimapOpacity: 1
+	minimapOpacity: 1,
+	titleBarColor: '#00000008',
+	titleTextColor: '#00000077'
 }
 
 export default class CanvasMinimap extends Plugin {
@@ -133,6 +137,9 @@ export default class CanvasMinimap extends Plugin {
 	canvas_bounds: BoundingBox = new BoundingBox()
 	canvas_patched: boolean = false
 	canvas_event: CanvasEvent = new CanvasEvent()
+
+	// 添加一个属性保存当前的小地图位置，防止刷新后位置丢失
+	private currentViewBox: {x: number, y: number, width: number, height: number} | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -247,13 +254,34 @@ export default class CanvasMinimap extends Plugin {
 			bbox.maxX + this.settings.margin,
 			bbox.maxY + this.settings.margin)
 		
-			svg.attr(
-				"viewBox",
-				`${this.canvas_bounds.minX} ${this.canvas_bounds.minY} ${this.canvas_bounds.width()} ${this.canvas_bounds.height()}`
-			)
-				.attr("preserveAspectRatio", "xMidYMid meet")
-				.attr("width", this.settings.width)
-				.attr("height", this.settings.height);
+		// 在设置新的viewBox之前，保存当前的viewBox状态
+		const currentSvg = svg.node();
+		if (currentSvg) {
+			const viewBoxAttr = currentSvg.getAttribute('viewBox');
+			if (viewBoxAttr) {
+				const [x, y, width, height] = viewBoxAttr.split(' ').map(Number);
+				// 仅当当前视图框不是初始状态时才保存（防止覆盖已有的自定义视图）
+				if (this.currentViewBox || 
+				    (x !== this.canvas_bounds.minX || y !== this.canvas_bounds.minY || 
+				     width !== this.canvas_bounds.width() || height !== this.canvas_bounds.height())) {
+					this.currentViewBox = {x, y, width, height};
+				}
+			}
+		}
+		
+		// 应用viewBox，优先使用保存的视图框状态
+		if (this.currentViewBox) {
+			// 确保保存的viewBox值在画布范围内
+			const clampedX = Math.max(this.canvas_bounds.minX, Math.min(this.currentViewBox.x, this.canvas_bounds.maxX - this.currentViewBox.width));
+			const clampedY = Math.max(this.canvas_bounds.minY, Math.min(this.currentViewBox.y, this.canvas_bounds.maxY - this.currentViewBox.height));
+			const clampedWidth = Math.min(this.currentViewBox.width, this.canvas_bounds.width());
+			const clampedHeight = Math.min(this.currentViewBox.height, this.canvas_bounds.height());
+			
+			svg.attr("viewBox", `${clampedX} ${clampedY} ${clampedWidth} ${clampedHeight}`);
+		} else {
+			// 使用默认的viewBox
+			svg.attr("viewBox", `${this.canvas_bounds.minX} ${this.canvas_bounds.minY} ${this.canvas_bounds.width()} ${this.canvas_bounds.height()}`);
+		}
 			
 			
 			let bg = svg.append('g')
@@ -325,8 +353,6 @@ export default class CanvasMinimap extends Plugin {
 			fg
 				.append("path")
 				.attr("d", link)
-
-				//修改 - 删除了箭头，以免在小地图上看起来很乱
 				//.attr("marker-end", "url(#arrowhead-end)")
 				.attr("stroke", "grey")
 				.attr("stroke-width", 8)
@@ -413,6 +439,7 @@ export default class CanvasMinimap extends Plugin {
 	}
 
 	reloadMinimap() {
+		this.currentViewBox = null; // 重置当前viewBox以强制重新计算位置
 		this.unloadMinimap()
 		this.setupMinimap()
 	}
@@ -502,10 +529,8 @@ export default class CanvasMinimap extends Plugin {
 					.style('z-index', '40') // 降低层级，避免覆盖设置界面
 					.style('opacity', this.settings.minimapOpacity) // 使用设置的透明度
 					.style('pointer-events', 'all') // 允许交互
-					// .style('border', '2px solid #808080')
 					.style('border-radius', '5px')
 					.style('overflow', 'hidden')
-					// .style('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')
 
 				// 根据设置的位置属性放置小地图，如果未设置则使用预设位置
 				if (this.settings.positionX !== 0 || this.settings.positionY !== 0) {
@@ -543,7 +568,7 @@ export default class CanvasMinimap extends Plugin {
 					.style('left', '0')
 					.style('right', '0')
 					.style('height', '20px')
-					.style('background-color', 'rgba(0,0,0,0.3)')
+					.style('background-color', this.settings.titleBarColor)
 					.style('cursor', 'move')
 					.style('display', 'flex')
 					.style('justify-content', 'space-between')
@@ -554,7 +579,7 @@ export default class CanvasMinimap extends Plugin {
 				header.append('span')
 					.attr('class', 'minimap-title')
 					.text('Canvas Minimap')
-					.style('color', 'white')
+					.style('color', this.settings.titleTextColor)
 					.style('font-size', '10px')
 					.style('font-weight', 'bold');
 
@@ -614,7 +639,7 @@ export default class CanvasMinimap extends Plugin {
 				let lastX = 0;
 				let lastY = 0;
 				
-				// 添加鼠标事件处理
+					// 添加鼠标事件处理
 				svg.on('mousedown', (e: MouseEvent) => {
 					if (e.button === 0) { // 左键
 						isSvgDragging = true;
@@ -647,10 +672,21 @@ export default class CanvasMinimap extends Plugin {
 						const actualDeltaY = -deltaY / scaleY;
 						
 						// 更新viewBox以实现平移
+						const newX = x + actualDeltaX;
+						const newY = y + actualDeltaY;
+						
 						svg.attr(
 							"viewBox",
-							`${x + actualDeltaX} ${y + actualDeltaY} ${width} ${height}`
+							`${newX} ${newY} ${width} ${height}`
 						);
+						
+						// 更新保存的viewBox状态
+						this.currentViewBox = {
+							x: newX,
+							y: newY,
+							width: width,
+							height: height
+						};
 						
 						// 更新上次鼠标位置
 						lastX = e.clientX;
@@ -665,6 +701,7 @@ export default class CanvasMinimap extends Plugin {
 						svg.style('cursor', 'grab');
 					}
 				};
+
 
 				// 添加事件监听器到文档上，以确保即使鼠标移出小地图区域也能正常工作
 				document.addEventListener('mousemove', handleSvgMouseMove);
@@ -767,6 +804,14 @@ export default class CanvasMinimap extends Plugin {
 							"viewBox",
 							`${newCenterX} ${newCenterY} ${newWidth} ${newHeight}`
 						);
+						
+						// 保存当前viewBox状态
+						this.currentViewBox = {
+							x: newCenterX,
+							y: newCenterY,
+							width: newWidth,
+							height: newHeight
+						};
 					}
 				})
 
@@ -1067,7 +1112,50 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.fontColor = value;
 					await this.plugin.saveSettings();
-				}));
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.fontColor)
+					.onChange(async (value) => {
+						this.plugin.settings.fontColor = value;
+						await this.plugin.saveSettings();
+					}));
+		
+		// 标题栏背景色设置
+		new Setting(containerEl)
+			.setName(t('titleBarColor'))
+			.setDesc(t('titleBarColorDesc'))
+			.addText(text => text
+				.setValue(this.plugin.settings.titleBarColor)
+				.onChange(async (value) => {
+					this.plugin.settings.titleBarColor = value;
+					await this.plugin.saveSettings();
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.titleBarColor)
+					.onChange(async (value) => {
+						this.plugin.settings.titleBarColor = value;
+						await this.plugin.saveSettings();
+					}));
+		
+		// 标题文字颜色设置
+		new Setting(containerEl)
+			.setName(t('titleTextColor'))
+			.setDesc(t('titleTextColorDesc'))
+			.addText(text => text
+				.setValue(this.plugin.settings.titleTextColor)
+				.onChange(async (value) => {
+					this.plugin.settings.titleTextColor = value;
+					await this.plugin.saveSettings();
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.titleTextColor)
+					.onChange(async (value) => {
+						this.plugin.settings.titleTextColor = value;
+						await this.plugin.saveSettings();
+					}));
 
 		new Setting(containerEl)
 			.setName(t('backgroundColor'))
@@ -1077,7 +1165,15 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.backgroundColor = value;
 					await this.plugin.saveSettings();
-				}));
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.backgroundColor)
+					.onChange(async (value) => {
+						this.plugin.settings.backgroundColor = value;
+						await this.plugin.saveSettings();
+					}));
+
 
 		new Setting(containerEl)
 			.setName(t('groupColor'))
@@ -1087,17 +1183,31 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.groupColor = value;
 					await this.plugin.saveSettings();
-				}));
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.groupColor)
+					.onChange(async (value) => {
+						this.plugin.settings.groupColor = value;
+						await this.plugin.saveSettings();
+					}));
 
-		// new Setting(containerEl)
-		// 	.setName(t('hijackToolbar'))
-		// 	.setDesc(t('hijackToolbarDesc'))
-		// 	.addToggle(toggle => toggle
-		// 		.setValue(this.plugin.settings.hijackToolbar)
-		// 		.onChange(async (value) => {
-		// 			this.plugin.settings.hijackToolbar = value;
-		// 			await this.plugin.saveSettings();
-		// 		}));
+		new Setting(containerEl)
+			.setName(t('nodeColor'))
+			.setDesc(t('nodeColorDesc'))
+			.addText(text => text
+				.setValue(this.plugin.settings.nodeColor)
+				.onChange(async (value) => {
+					this.plugin.settings.nodeColor = value;
+					await this.plugin.saveSettings();
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.nodeColor)
+					.onChange(async (value) => {
+						this.plugin.settings.nodeColor = value;
+						await this.plugin.saveSettings();
+					}));
 
 		new Setting(containerEl)
 			.setName(t('drawActiveViewport'))

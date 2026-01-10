@@ -43,6 +43,10 @@ const translations = {
 	'minimapOpacity': '透明度',
 	'minimapOpacityDesc': '自定义小地图的透明度',
 	'mapDesc': '切换小地图显示/隐藏',
+	'titleBarColor': '标题栏颜色',
+	'titleBarColorDesc': '自定义小地图的标题栏颜色',
+	'titleTextColor': '标题文本颜色',
+	'titleTextColorDesc': '自定义小地图的标题文本颜色',
 
 };
 
