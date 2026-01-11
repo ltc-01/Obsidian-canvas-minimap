@@ -39,14 +39,3 @@ If your plugin does not need CSS, delete this file.
     color: #333; /* 更深的颜色以便更好阅读 */
     font-weight: bold;
 }
-
-.minimap-close-btn {
-    color: #333;
-    cursor: pointer;
-    padding: 2px;
-    border-radius: 2px;
-}
-
-.minimap-close-btn:hover {
-    background-color: rgba(255, 0, 0, 0.5);
-}

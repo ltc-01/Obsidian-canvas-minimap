@@ -118,12 +118,12 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	height: 300,
 	margin: 800,
 	fontSize: 10,
-	fontColor: '#d1d1d1',
+	fontColor: '#a39e9e',
 	side: 'bottom-right',
 	enabled: true,
 	backgroundColor: '#ffffff',
 	groupColor: '#bdd5de55',
-	nodeColor: '#c3d6d7',
+	nodeColor: '#cccccc66',
 	hijackToolbar: false,
 	drawActiveViewport: true,
 	primaryNavigationStrategy: 'ZOOM',
@@ -473,7 +473,8 @@ export default class CanvasMinimap extends Plugin {
 
 				const font_size = (this.settings.fontSize / viewBoxLevel);
 				const font_offset = (1.5 / viewBoxLevel);
-
+				const stroke_offset = (0.5 / viewBoxLevel);
+				
 				const text = fg.append("text")
 				text
 					.text(label)
@@ -484,7 +485,10 @@ export default class CanvasMinimap extends Plugin {
 					.attr("fill", this.settings.fontColor)
 					.attr("font-size", font_size + "px")
 					.attr("font-weight", "bold")
-
+					.style("stroke", "#ffffff")          
+					.style("stroke-width", stroke_offset)
+					.style("paint-order", "stroke fill")
+					
 			}
 		})
 		
@@ -1275,77 +1279,78 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName(t('fontColor'))
 			.setDesc(t('fontColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.fontColor)
-				.onChange(async (value) => {
-					this.plugin.settings.fontColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.fontColor)
 					.onChange(async (value) => {
 						this.plugin.settings.fontColor = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.fontColor)
+				.onChange(async (value) => {
+					this.plugin.settings.fontColor = value;
+					await this.plugin.saveSettings();
+				}));
+			
 		
 		// 标题栏背景色设置
 		new Setting(containerEl)
 			.setName(t('titleBarColor'))
 			.setDesc(t('titleBarColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.titleBarColor)
-				.onChange(async (value) => {
-					this.plugin.settings.titleBarColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.titleBarColor)
 					.onChange(async (value) => {
 						this.plugin.settings.titleBarColor = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.titleBarColor)
+				.onChange(async (value) => {
+					this.plugin.settings.titleBarColor = value;
+					await this.plugin.saveSettings();
+				}));
 		
 		// 标题文字颜色设置
 		new Setting(containerEl)
 			.setName(t('titleTextColor'))
 			.setDesc(t('titleTextColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.titleTextColor)
-				.onChange(async (value) => {
-					this.plugin.settings.titleTextColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.titleTextColor)
 					.onChange(async (value) => {
 						this.plugin.settings.titleTextColor = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.titleTextColor)
+				.onChange(async (value) => {
+					this.plugin.settings.titleTextColor = value;
+					await this.plugin.saveSettings();
+				}));
 
 		new Setting(containerEl)
 			.setName(t('backgroundColor'))
 			.setDesc(t('backgroundColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.backgroundColor)
-				.onChange(async (value) => {
-					this.plugin.settings.backgroundColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.backgroundColor)
 					.onChange(async (value) => {
 						this.plugin.settings.backgroundColor = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.backgroundColor)
+				.onChange(async (value) => {
+					this.plugin.settings.backgroundColor = value;
+					await this.plugin.saveSettings();
+				}));
 
 		// 添加使用 Canvas 颜色的开关
 		new Setting(containerEl)
-			.setName('Use Canvas Colors')
-			.setDesc('Use colors as set in the Obsidian canvas instead of custom colors')
+			.setName(t('useCanvasColors'))
+			.setDesc(t('useCanvasColorsDesc'))
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.useCanvasColors)
 				.onChange(async (value) => {
@@ -1357,26 +1362,42 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 		if (this.plugin.settings.useCanvasColors) { 
 			// 显示透明度设置
 			new Setting(containerEl)
-				.setName('Group Opacity')
-				.setDesc('Opacity for group colors from canvas')
+				.setName(t('groupOpacity'))
+				.setDesc(t('groupOpacityDesc'))
 				.addSlider(slider => slider
 					.setLimits(0, 1, 0.05)
 					.setValue(this.plugin.settings.groupOpacity)
 					.onChange(async (value) => {
 						this.plugin.settings.groupOpacity = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+				.addExtraButton(button => button
+				.setIcon('reset')
+				.setTooltip('Reset to default')
+				.onClick(async () => {
+					this.plugin.settings.groupOpacity = DEFAULT_SETTINGS.groupOpacity;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
 
 			new Setting(containerEl)
-				.setName('Node Opacity')
-				.setDesc('Opacity for node colors from canvas')
+				.setName(t('nodeOpacity'))
+				.setDesc(t('nodeOpacityDesc'))
 				.addSlider(slider => slider
 					.setLimits(0, 1, 0.05)
 					.setValue(this.plugin.settings.nodeOpacity)
 					.onChange(async (value) => {
 						this.plugin.settings.nodeOpacity = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+				.addExtraButton(button => button
+				.setIcon('reset')
+				.setTooltip('Reset to default')
+				.onClick(async () => {
+					this.plugin.settings.nodeOpacity = DEFAULT_SETTINGS.nodeOpacity;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
 		} else {
 		    new Setting(containerEl)
 			.setName(t('groupColor'))
