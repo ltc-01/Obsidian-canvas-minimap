@@ -108,6 +108,10 @@ interface CanvasMinimapSettings {
 	minimapOpacity: number;
 	titleBarColor: string;
 	titleTextColor: string;
+	useCanvasColors: boolean;
+	groupOpacity: number;
+	nodeOpacity: number;
+	linkColor: string;
 }
 
 const DEFAULT_SETTINGS: CanvasMinimapSettings = {
@@ -115,12 +119,12 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	height: 300,
 	margin: 800,
 	fontSize: 10,
-	fontColor: '#d1d1d1',
+	fontColor: '#a39e9e',
 	side: 'bottom-right',
 	enabled: true,
 	backgroundColor: '#ffffff',
 	groupColor: '#bdd5de55',
-	nodeColor: '#c3d6d7',
+	nodeColor: '#cccccc66',
 	hijackToolbar: false,
 	drawActiveViewport: true,
 	primaryNavigationStrategy: 'ZOOM',
@@ -129,7 +133,125 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	positionY: 0,
 	minimapOpacity: 1,
 	titleBarColor: '#00000008',
-	titleTextColor: '#00000077'
+	titleTextColor: '#00000077',
+	groupOpacity: 0.07,
+	nodeOpacity: 0.07,
+	useCanvasColors: true,
+	linkColor: '#c0c0c0',
+}
+
+function convertNodeColor(color: string) {
+    if (!color) return '#c0c0c0';
+	if (color.startsWith('#')) return color;
+	switch (color) {
+		case '1':
+			return '#e93147';
+		case '2':
+			return '#ec7500';
+		case '3':
+			return '#e0ac00';
+		case '4':
+			return '#08b94e';
+		case '5':
+			return '#00bfbc';
+		case '6':
+			return '#7852ee';
+		default:
+			return '#c0c0c0';
+	}
+}
+
+function addOpacityToHexColor(color: string, opacity: number): string {
+    // 确保颜色值以#开头
+    if (!color.startsWith('#')) {
+        console.error('Color must be in hex format starting with #');
+		return color;
+    }
+    
+    // 移除 # 符号
+    let hex = color.substring(1);
+    
+    // 确保是6位十六进制数
+    if (hex.length !== 6) {
+        console.error('Color must be in #RRGGBB format');
+		return color;
+    }
+    
+    // 将透明度转换为十六进制值 (0-255 to 00-FF)
+    const opacityHex = Math.round(opacity * 255).toString(16).padStart(2, '0');
+    
+    // 组合颜色和透明度
+    return `#${hex}${opacityHex}`;
+}
+
+function blendColorWithOpacity(color: string, opacity: number): string {
+    // 确保透明度在有效范围内
+    opacity = Math.max(0, Math.min(1, opacity));
+    const backgroundColor = '#ffffff'
+    // 验证输入颜色格式
+    if (!color.startsWith('#')) {
+        console.error('Color must be in hex format starting with #');
+        return backgroundColor;
+    }
+    
+    // 确保背景色是有效的六位十六进制颜色
+    if (!backgroundColor.startsWith('#') || backgroundColor.length !== 7) {
+        console.error('Background color must be in #RRGGBB format');
+        return backgroundColor;
+    }
+    
+    // 解析输入颜色
+    let hex = color.substring(1);
+    let r, g, b;
+    
+    // 处理不同格式的输入颜色
+    if (hex.length === 8) { // #RRGGBBAA format
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+        // 使用参数中的透明度，而不是颜色本身的透明度
+        const effectiveAlpha = opacity;
+    } else if (hex.length === 6) { // #RRGGBB format
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+        // 输入颜色是不透明的，应用参数中的透明度
+        const effectiveAlpha = opacity;
+    } else if (hex.length === 4) { // #RGBA format
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+        // 使用参数中的透明度，而不是颜色本身的透明度
+        const effectiveAlpha = opacity;
+    } else if (hex.length === 3) { // #RGB format
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+        // 输入颜色是不透明的，应用参数中的透明度
+        const effectiveAlpha = opacity;
+    } else {
+        console.error('Invalid color format');
+        return backgroundColor;
+    }
+    
+    // 解析背景色
+    const bgR = parseInt(backgroundColor.substring(1, 3), 16);
+    const bgG = parseInt(backgroundColor.substring(3, 5), 16);
+    const bgB = parseInt(backgroundColor.substring(5, 7), 16);
+    
+    // 应用 Alpha 合成公式
+    // 最终颜色 = 前景颜色 * alpha + 背景颜色 * (1 - alpha)
+    const finalR = Math.round(r * opacity + bgR * (1 - opacity));
+    const finalG = Math.round(g * opacity + bgG * (1 - opacity));
+    const finalB = Math.round(b * opacity + bgB * (1 - opacity));
+    
+    // 转换回十六进制格式
+    const blendedHex = '#' + 
+        finalR.toString(16).padStart(2, '0') +
+        finalG.toString(16).padStart(2, '0') +
+        finalB.toString(16).padStart(2, '0');
+        
+    return blendedHex;
 }
 
 export default class CanvasMinimap extends Plugin {
@@ -240,6 +362,9 @@ export default class CanvasMinimap extends Plugin {
 			bbox.minY = Math.min(bbox.minY, node.y);
 			bbox.maxX = Math.max(bbox.maxX, node.x + node.width);
 			bbox.maxY = Math.max(bbox.maxY, node.y + node.height);
+			// console.log('Node properties:', Object.keys(node));
+    		// console.log('Full node data:', node);
+			const nodeCanvasColor = node.color || '';
 			if (node.unknownData?.type === 'group') {
 				groups.set(node.id, node)
 			} else {
@@ -284,15 +409,41 @@ export default class CanvasMinimap extends Plugin {
 		}
 			
 			
-			let bg = svg.append('g')
-				.attr('id', 'minimap_bg')
-			let fg = svg.append('g')
-				.attr('id', 'minimap_fg')
-			
+		let bg = svg.append('g')
+			.attr('id', 'minimap_bg')
+		let mg = svg.append('g')
+			.attr('id', 'minimap_mg')
+		let fg = svg.append('g')
+			.attr('id', 'minimap_fg')
+		let ffg = svg.append('g')
+			.attr('id', 'minimap_ffg')
 
-		groups.forEach((n: any) => {
+		children.forEach((n: any) => {
 			const g = fg.append('g')
 			const rect = g.append("rect");
+			const props = Object.entries(n);
+			const strokeColor = convertNodeColor(n.color || '#c0c0c0');
+			const fillColor = blendColorWithOpacity(strokeColor, this.settings.nodeOpacity);
+			for (const [k, v] of props) {
+				if (k === 'x' || k === 'y' || k === 'width' || k === 'height' || k === 'id')
+					rect.attr(k, v);
+			}
+			
+			if(this.settings.useCanvasColors){
+				rect.attr("stroke", strokeColor);
+				rect.attr("fill", fillColor);
+			} else {
+				rect.attr("fill", this.settings.nodeColor);
+			}
+
+		})
+
+
+		groups.forEach((n: any) => {
+			const g = mg.append('g')
+			const rect = g.append("rect");
+			const strokeColor = convertNodeColor(n.color || '#c0c0c0');
+			const fillColor = addOpacityToHexColor(strokeColor, this.settings.groupOpacity);
 
 			const props = Object.entries(n);
 			for (const [k, v] of props) {
@@ -300,41 +451,49 @@ export default class CanvasMinimap extends Plugin {
 				if (k === 'x' || k === 'y' || k === 'width' || k === 'height' || k === 'id')
 					rect.attr(k, v);
 			}
-			rect.attr("stroke", "darkblue");
-			rect.attr("fill", this.settings.groupColor);
-			
+			if(this.settings.useCanvasColors){
+				rect.attr("stroke", strokeColor);
+				rect.attr("fill", fillColor);
+			} else {
+				rect.attr("fill", this.settings.groupColor);
+			}
 
 			const label: string = n.label
 			if (label) {
-				// prevent text from scaling
-				const scale_x = this.settings.width / (bbox.maxX - bbox.minX)
-				const scale_y = this.settings.height / (bbox.maxY - bbox.minY)
-				const scale = Math.min(scale_x, scale_y)
-				const font_size = this.settings.fontSize / scale
-				const text = g.append("text")
+				const svgNode = svg.node() ? svg.node() : svg;
+				const rect = svgNode.getBoundingClientRect();
+
+				let viewBoxLevel = 1;
+				const current_bbox = svg.attr("viewBox");
+
+				if (current_bbox) {
+					const [x, y, width, height] = current_bbox.split(' ').map(Number);
+					const levelWidth =  rect.width / width;
+					const levelHeight = rect.height / height;
+					viewBoxLevel = Math.min(levelWidth, levelHeight);
+				} 
+
+				const font_size = (this.settings.fontSize / viewBoxLevel);
+				const font_offset = (1.5 / viewBoxLevel);
+				const stroke_offset = (0.5 / viewBoxLevel);
+				
+				const text = fg.append("text")
 				text
 					.text(label)
 					.attr("x", n.x)
-					.attr("y", n.y)
+					.attr("y", n.y - font_offset)
 					.attr("text-anchor", "left")
 					.attr("alignment-baseline", "left")
 					.attr("fill", this.settings.fontColor)
-					.attr("font-size", font_size)
+					.attr("font-size", font_size + "px")
 					.attr("font-weight", "bold")
-
+					.style("stroke", "#ffffff")          
+					.style("stroke-width", stroke_offset)
+					.style("paint-order", "stroke fill")
+					
 			}
 		})
-		children.forEach((n: any) => {
-			const g = fg.append('g')
-			const rect = g.append("rect");
-			const props = Object.entries(n);
-			for (const [k, v] of props) {
-				if (k === 'x' || k === 'y' || k === 'width' || k === 'height' || k === 'id')
-					rect.attr(k, v);
-			}
-			//rect.attr("stroke", "blue");
-			rect.attr("fill", this.settings.nodeColor);
-		})
+		
 		edges.forEach((e: any) => {
 			const fromPos = sidePositionOf(e.from.node, e.from.side);
 			const toPos = sidePositionOf(e.to.node, e.to.side);
@@ -350,17 +509,23 @@ export default class CanvasMinimap extends Plugin {
 					target: [toPos.x, toPos.y]
 				});
 			//console.log(e, fromPos, toPos, link)
-			fg
+			mg
 				.append("path")
 				.attr("d", link)
 				//.attr("marker-end", "url(#arrowhead-end)")
-				.attr("stroke", "grey")
+				.attr("stroke", this.settings.linkColor)
+				.attr("stroke-width", 4)
+				.attr("fill", "none");
+
+			ffg
+				.append("path")
+				.attr("d", link)
 				.attr("stroke-width", 8)
 				.attr("fill", "none");
 
 		})
 
-		bg.append('rect')
+		ffg.append('rect')
 			.attr('id', 'minimap_viewport')
 			.attr('fill', 'none')
 
@@ -817,6 +982,7 @@ export default class CanvasMinimap extends Plugin {
 							width: newWidth,
 							height: newHeight
 						};
+						this.reloadMinimap()
 					}
 				})
 
@@ -1121,108 +1287,186 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName(t('fontColor'))
 			.setDesc(t('fontColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.fontColor)
-				.onChange(async (value) => {
-					this.plugin.settings.fontColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.fontColor)
 					.onChange(async (value) => {
 						this.plugin.settings.fontColor = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.fontColor)
+				.onChange(async (value) => {
+					this.plugin.settings.fontColor = value;
+					await this.plugin.saveSettings();
+				}));
+			
 		
 		// 标题栏背景色设置
 		new Setting(containerEl)
 			.setName(t('titleBarColor'))
 			.setDesc(t('titleBarColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.titleBarColor)
-				.onChange(async (value) => {
-					this.plugin.settings.titleBarColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.titleBarColor)
 					.onChange(async (value) => {
 						this.plugin.settings.titleBarColor = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.titleBarColor)
+				.onChange(async (value) => {
+					this.plugin.settings.titleBarColor = value;
+					await this.plugin.saveSettings();
+				}));
 		
 		// 标题文字颜色设置
 		new Setting(containerEl)
 			.setName(t('titleTextColor'))
 			.setDesc(t('titleTextColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.titleTextColor)
-				.onChange(async (value) => {
-					this.plugin.settings.titleTextColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.titleTextColor)
 					.onChange(async (value) => {
 						this.plugin.settings.titleTextColor = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.titleTextColor)
+				.onChange(async (value) => {
+					this.plugin.settings.titleTextColor = value;
+					await this.plugin.saveSettings();
+				}));
 
 		new Setting(containerEl)
 			.setName(t('backgroundColor'))
 			.setDesc(t('backgroundColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.backgroundColor)
-				.onChange(async (value) => {
-					this.plugin.settings.backgroundColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.backgroundColor)
 					.onChange(async (value) => {
 						this.plugin.settings.backgroundColor = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.backgroundColor)
+				.onChange(async (value) => {
+					this.plugin.settings.backgroundColor = value;
+					await this.plugin.saveSettings();
+				}));
 
-
+		// 添加使用 Canvas 颜色的开关
 		new Setting(containerEl)
+			.setName(t('useCanvasColors'))
+			.setDesc(t('useCanvasColorsDesc'))
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.useCanvasColors)
+				.onChange(async (value) => {
+					this.plugin.settings.useCanvasColors = value;
+					await this.plugin.saveSettings();
+					this.display(); // 重新渲染设置界面
+				}));
+
+		if (this.plugin.settings.useCanvasColors) { 
+			// 显示透明度设置
+			new Setting(containerEl)
+				.setName(t('groupOpacity'))
+				.setDesc(t('groupOpacityDesc'))
+				.addSlider(slider => slider
+					.setLimits(0, 1, 0.05)
+					.setValue(this.plugin.settings.groupOpacity)
+					.onChange(async (value) => {
+						this.plugin.settings.groupOpacity = value;
+						await this.plugin.saveSettings();
+					}))
+				.addExtraButton(button => button
+				.setIcon('reset')
+				.setTooltip('Reset to default')
+				.onClick(async () => {
+					this.plugin.settings.groupOpacity = DEFAULT_SETTINGS.groupOpacity;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+
+			new Setting(containerEl)
+				.setName(t('nodeOpacity'))
+				.setDesc(t('nodeOpacityDesc'))
+				.addSlider(slider => slider
+					.setLimits(0, 1, 0.05)
+					.setValue(this.plugin.settings.nodeOpacity)
+					.onChange(async (value) => {
+						this.plugin.settings.nodeOpacity = value;
+						await this.plugin.saveSettings();
+					}))
+				.addExtraButton(button => button
+				.setIcon('reset')
+				.setTooltip('Reset to default')
+				.onClick(async () => {
+					this.plugin.settings.nodeOpacity = DEFAULT_SETTINGS.nodeOpacity;
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+		} else {
+		    new Setting(containerEl)
 			.setName(t('groupColor'))
 			.setDesc(t('groupColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.groupColor)
-				.onChange(async (value) => {
-					this.plugin.settings.groupColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.groupColor)
 					.onChange(async (value) => {
 						this.plugin.settings.groupColor = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.groupColor)
+				.onChange(async (value) => {
+					this.plugin.settings.groupColor = value;
+					await this.plugin.saveSettings();
+				}));
 
 		new Setting(containerEl)
 			.setName(t('nodeColor'))
 			.setDesc(t('nodeColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.nodeColor)
-				.onChange(async (value) => {
-					this.plugin.settings.nodeColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.nodeColor)
 					.onChange(async (value) => {
 						this.plugin.settings.nodeColor = value;
 						await this.plugin.saveSettings();
-					}));
-
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.nodeColor)
+				.onChange(async (value) => {
+					this.plugin.settings.nodeColor = value;
+					await this.plugin.saveSettings();
+				}));
+		
+		
+		}
+		new Setting(containerEl)
+			.setName(t('linkColor'))
+			.setDesc(t('linkColorDesc'))
+			.addExtraButton(button => button
+				.setIcon('reset')
+				.setTooltip('Reset to default')
+				.onClick(async () => {
+					this.plugin.settings.linkColor = DEFAULT_SETTINGS.linkColor;
+					await this.plugin.saveSettings();
+					this.display();
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.linkColor)
+					.onChange(async (value) => {
+						this.plugin.settings.linkColor = value;
+						await this.plugin.saveSettings();
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.linkColor)
+				.onChange(async (value) => {
+					this.plugin.settings.linkColor = value;
+					await this.plugin.saveSettings();
+				}));
 		new Setting(containerEl)
 			.setName(t('drawActiveViewport'))
 			.setDesc(t('drawActiveViewportDesc'))

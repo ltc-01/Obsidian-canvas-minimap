@@ -46,7 +46,16 @@ const translations = {
 	'titleBarColor': 'Title Bar Color',
 	'titleBarColorDesc': 'Customize the color of the minimap title bar',
 	'titleTextColor': 'Title Text Color',
-	'titleTextColorDesc': 'Customize the color of the minimap title text'
+	'titleTextColorDesc': 'Customize the color of the minimap title text',
+	'useCanvasColors': 'Use Canvas Colors',
+	'useCanvasColorsDesc': 'Use colors as set in the Obsidian canvas instead of custom colors',
+	'groupOpacity': 'Group Opacity',
+	'groupOpacityDesc': 'Customize the opacity of group nodes in the minimap',
+	'nodeOpacity': 'Node Opacity',
+	'nodeOpacityDesc': 'Customize the opacity of nodes in the minimap',
+	'linkColor': 'Link Color',
+	'linkColorDesc': 'Set the color of the connecting lines in the minimap',
+	
 };
 
 export default translations;
