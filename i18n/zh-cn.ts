@@ -53,6 +53,8 @@ const translations = {
 	'groupOpacityDesc': '自定义小地图中分组节点的透明度',
 	'nodeOpacity': '节点透明度',
 	'nodeOpacityDesc': '自定义小地图中节点的透明度',
+	'linkColor': '连线颜色',
+	'linkColorDesc': '自定义小地图中连线的颜色'
 };
 
 export default translations;

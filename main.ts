@@ -111,6 +111,7 @@ interface CanvasMinimapSettings {
 	useCanvasColors: boolean;
 	groupOpacity: number;
 	nodeOpacity: number;
+	linkColor: string;
 }
 
 const DEFAULT_SETTINGS: CanvasMinimapSettings = {
@@ -136,6 +137,7 @@ const DEFAULT_SETTINGS: CanvasMinimapSettings = {
 	groupOpacity: 0.07,
 	nodeOpacity: 0.07,
 	useCanvasColors: true,
+	linkColor: '#c0c0c0',
 }
 
 function convertNodeColor(color: string) {
@@ -511,7 +513,13 @@ export default class CanvasMinimap extends Plugin {
 				.append("path")
 				.attr("d", link)
 				//.attr("marker-end", "url(#arrowhead-end)")
-				.attr("stroke", "grey")
+				.attr("stroke", this.settings.linkColor)
+				.attr("stroke-width", 4)
+				.attr("fill", "none");
+
+			ffg
+				.append("path")
+				.attr("d", link)
 				.attr("stroke-width", 8)
 				.attr("fill", "none");
 
@@ -1402,40 +1410,63 @@ class CanvasMinimapSettingTab extends PluginSettingTab {
 		    new Setting(containerEl)
 			.setName(t('groupColor'))
 			.setDesc(t('groupColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.groupColor)
-				.onChange(async (value) => {
-					this.plugin.settings.groupColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.groupColor)
 					.onChange(async (value) => {
 						this.plugin.settings.groupColor = value;
 						await this.plugin.saveSettings();
-					}));
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.groupColor)
+				.onChange(async (value) => {
+					this.plugin.settings.groupColor = value;
+					await this.plugin.saveSettings();
+				}));
 
 		new Setting(containerEl)
 			.setName(t('nodeColor'))
 			.setDesc(t('nodeColorDesc'))
-			.addText(text => text
-				.setValue(this.plugin.settings.nodeColor)
-				.onChange(async (value) => {
-					this.plugin.settings.nodeColor = value;
-					await this.plugin.saveSettings();
-				}))
 			.addColorPicker(colorPicker => 
 				colorPicker
 					.setValue(this.plugin.settings.nodeColor)
 					.onChange(async (value) => {
 						this.plugin.settings.nodeColor = value;
 						await this.plugin.saveSettings();
-					}));
-		}
-
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.nodeColor)
+				.onChange(async (value) => {
+					this.plugin.settings.nodeColor = value;
+					await this.plugin.saveSettings();
+				}));
 		
-
+		
+		}
+		new Setting(containerEl)
+			.setName(t('linkColor'))
+			.setDesc(t('linkColorDesc'))
+			.addExtraButton(button => button
+				.setIcon('reset')
+				.setTooltip('Reset to default')
+				.onClick(async () => {
+					this.plugin.settings.linkColor = DEFAULT_SETTINGS.linkColor;
+					await this.plugin.saveSettings();
+					this.display();
+				}))
+			.addColorPicker(colorPicker => 
+				colorPicker
+					.setValue(this.plugin.settings.linkColor)
+					.onChange(async (value) => {
+						this.plugin.settings.linkColor = value;
+						await this.plugin.saveSettings();
+					}))
+			.addText(text => text
+				.setValue(this.plugin.settings.linkColor)
+				.onChange(async (value) => {
+					this.plugin.settings.linkColor = value;
+					await this.plugin.saveSettings();
+				}));
 		new Setting(containerEl)
 			.setName(t('drawActiveViewport'))
 			.setDesc(t('drawActiveViewportDesc'))

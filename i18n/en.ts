@@ -53,6 +53,8 @@ const translations = {
 	'groupOpacityDesc': 'Customize the opacity of group nodes in the minimap',
 	'nodeOpacity': 'Node Opacity',
 	'nodeOpacityDesc': 'Customize the opacity of nodes in the minimap',
+	'linkColor': 'Link Color',
+	'linkColorDesc': 'Set the color of the connecting lines in the minimap',
 	
 };
 
