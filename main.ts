@@ -458,20 +458,31 @@ export default class CanvasMinimap extends Plugin {
 
 			const label: string = n.label
 			if (label) {
-				// prevent text from scaling
-				const scale_x = this.settings.width / (bbox.maxX - bbox.minX)
-				const scale_y = this.settings.height / (bbox.maxY - bbox.minY)
-				const scale = Math.min(scale_x, scale_y)
-				const font_size = this.settings.fontSize / scale
+				const svgNode = svg.node() ? svg.node() : svg;
+				const rect = svgNode.getBoundingClientRect();
+
+				let viewBoxLevel = 1;
+				const current_bbox = svg.attr("viewBox");
+
+				if (current_bbox) {
+					const [x, y, width, height] = current_bbox.split(' ').map(Number);
+					const levelWidth =  rect.width / width;
+					const levelHeight = rect.height / height;
+					viewBoxLevel = Math.min(levelWidth, levelHeight);
+				} 
+
+				const font_size = (this.settings.fontSize / viewBoxLevel);
+				const font_offset = (1.5 / viewBoxLevel);
+
 				const text = fg.append("text")
 				text
 					.text(label)
 					.attr("x", n.x)
-					.attr("y", n.y - 30)
+					.attr("y", n.y - font_offset)
 					.attr("text-anchor", "left")
 					.attr("alignment-baseline", "left")
 					.attr("fill", this.settings.fontColor)
-					.attr("font-size", font_size)
+					.attr("font-size", font_size + "px")
 					.attr("font-weight", "bold")
 
 			}
@@ -959,6 +970,7 @@ export default class CanvasMinimap extends Plugin {
 							width: newWidth,
 							height: newHeight
 						};
+						this.reloadMinimap()
 					}
 				})
 
